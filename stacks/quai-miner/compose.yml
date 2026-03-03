@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  rigel:
+    image: ghcr.io/rigelminer/rigel:latest
+    container_name: rigel-miner
+    restart: unless-stopped
+    runtime: nvidia
+
+    env_file:
+      - /data/miner/.env
+
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+    command: >
+      rigel
+      -a ${ALGO}
+      -o ${POOL}
+      -u ${WALLET}
+      -w ${WORKER}
