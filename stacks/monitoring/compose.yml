@@ -46,7 +46,7 @@ services:
     volumes:
       - prometheus-data:/prometheus
     ports:
-      - "9090:9090"
+      - "9091:9090"
     networks:
       - monitoring
       - proxy
