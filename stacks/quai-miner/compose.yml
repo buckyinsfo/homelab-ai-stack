@@ -2,9 +2,10 @@ version: "3.9"
 
 services:
   rigel:
-    image: rigelminer/rigel:latest
-    restart: unless-stopped
+    build:
+      context: ../../images/rigel
 
+    restart: unless-stopped
     runtime: nvidia
 
     environment:
@@ -12,7 +13,6 @@ services:
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
 
     command: >
-      rigel
       -a ${ALGO}
       -o ${POOL}
       -u ${WALLET}
