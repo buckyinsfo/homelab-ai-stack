@@ -7,10 +7,11 @@ services:
 
     runtime: nvidia
 
-    env_file:
-      - /opt/stacks/quai-miner/.env
-
     environment:
+      ALGO: ${ALGO}
+      POOL: ${POOL}
+      WALLET: ${WALLET}
+      WORKER: ${WORKER}
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
 
@@ -20,9 +21,3 @@ services:
       -o ${POOL}
       -u ${WALLET}
       -w ${WORKER}
-
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - capabilities: [gpu]
