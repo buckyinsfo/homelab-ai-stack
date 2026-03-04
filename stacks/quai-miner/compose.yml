@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   rigel:
-    image: ghcr.io/rigelminer/rigel:latest
+    image: ghcr.io/rigelminer/rigel:1.23.0
     restart: unless-stopped
 
     runtime: nvidia
