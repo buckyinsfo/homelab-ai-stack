@@ -1,4 +1,22 @@
+# Secrets — never commit real .env files
 .env
 *.env
+!*.env.example
+
+# Backups and volume data
 backup/
 volumes/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Tarballs / build artifacts
+*.tar.gz
+*.tgz

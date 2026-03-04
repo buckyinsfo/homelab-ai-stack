@@ -1,21 +1,28 @@
-version: "3.9"
-
 services:
   rigel:
     build:
       context: ../../images/rigel
-
     image: cachehive/rigel
-
+    container_name: rigel
     restart: unless-stopped
-    runtime: nvidia
-
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     environment:
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
-
     command: >
       -a ${ALGO}
       -o ${POOL}
       -u ${WALLET}
       -w ${WORKER}
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true

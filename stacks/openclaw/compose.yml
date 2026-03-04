@@ -1,0 +1,29 @@
+services:
+  openclaw:
+    image: ghcr.io/openclaw/openclaw:latest
+    container_name: openclaw
+    restart: unless-stopped
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OLLAMA_BASE_URL: http://ollama:11434
+    volumes:
+      - openclaw-config:/home/node/.openclaw
+      - openclaw-workspace:/home/node/workspace
+    ports:
+      - "18789:18789"
+    networks:
+      - proxy
+    depends_on: []
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.openclaw.rule: "Host(`openclaw.${DOMAIN}`)"
+      traefik.http.services.openclaw.loadbalancer.server.port: "18789"
+
+volumes:
+  openclaw-config:
+  openclaw-workspace:
+
+networks:
+  proxy:
+    external: true

@@ -1,0 +1,33 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      OLLAMA_HOST: "0.0.0.0"
+    volumes:
+      - ollama-data:/root/.ollama
+    ports:
+      - "11434:11434"
+    networks:
+      - proxy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.ollama.rule: "Host(`ollama.${DOMAIN}`)"
+      traefik.http.services.ollama.loadbalancer.server.port: "11434"
+
+volumes:
+  ollama-data:
+
+networks:
+  proxy:
+    external: true
