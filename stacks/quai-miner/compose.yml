@@ -2,16 +2,12 @@ version: "3.9"
 
 services:
   rigel:
-    image: ghcr.io/rigelminer/rigel:1.23.0
+    image: rigelminer/rigel:latest
     restart: unless-stopped
 
     runtime: nvidia
 
     environment:
-      ALGO: ${ALGO}
-      POOL: ${POOL}
-      WALLET: ${WALLET}
-      WORKER: ${WORKER}
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
 
