@@ -17,6 +17,7 @@ services:
       traefik.enable: "true"
       traefik.docker.network: proxy
       traefik.http.routers.openwebui.rule: "Host(`ai.${DOMAIN}`)"
+      traefik.http.routers.openwebui.entrypoints: web
       traefik.http.services.openwebui.loadbalancer.server.port: "8080"
 
 volumes:
