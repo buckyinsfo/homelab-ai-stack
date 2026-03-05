@@ -3,6 +3,8 @@ services:
     image: traefik:v3.2
     container_name: traefik
     restart: unless-stopped
+    group_add: 
+      - "978"
     command:
       - "--api.dashboard=true"
       - "--api.insecure=true"
