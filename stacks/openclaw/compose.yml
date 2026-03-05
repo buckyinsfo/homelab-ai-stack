@@ -18,7 +18,9 @@ services:
       - proxy
     labels:
       traefik.enable: "true"
-      traefik.http.routers.openclaw.rule: "Host(`openclaw.${DOMAIN}`)"
+      traefik.http.routers.openclaw.rule: "Host(`openclaw.camp-fai`)"
+      traefik.http.routers.openclaw.entrypoints: "websecure"
+      traefik.http.routers.openclaw.tls: "true"
       traefik.http.services.openclaw.loadbalancer.server.port: "18789"
 
 networks:

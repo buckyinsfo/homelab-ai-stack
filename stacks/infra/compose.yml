@@ -10,12 +10,17 @@ services:
       - "--providers.docker.exposedbydefault=false"
       - "--providers.docker.network=proxy"
       - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--providers.file.filename=/etc/traefik/dynamic.yml"
       - "--log.level=WARN"
     ports:
       - "80:80"
+      - "443:443"
       - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /srv/certs:/etc/certs:ro
+      - /srv/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
     networks:
       - proxy
     labels:
