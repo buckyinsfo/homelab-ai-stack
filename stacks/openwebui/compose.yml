@@ -1,0 +1,27 @@
+services:
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: openwebui
+    restart: unless-stopped
+
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+
+    volumes:
+      - openwebui-data:/app/backend/data
+
+    networks:
+      - proxy
+
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: proxy
+      traefik.http.routers.openwebui.rule: "Host(`ai.${DOMAIN}`)"
+      traefik.http.services.openwebui.loadbalancer.server.port: "8080"
+
+volumes:
+  openwebui-data:
+
+networks:
+  proxy:
+    external: true
