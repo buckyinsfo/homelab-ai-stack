@@ -13,6 +13,7 @@ This repo is the single source of truth for a self-hosted AI + mining server man
 | **infra** | Traefik reverse proxy + shared `proxy` network | `stacks/infra/compose.yml` |
 | **postgres** | PostgreSQL 16 database | `stacks/postgres/compose.yml` |
 | **redis** | Redis 7 cache / message broker | `stacks/redis/compose.yml` |
+| **qdrant** | Vector database for RAG / semantic search | `stacks/qdrant/compose.yml` |
 | **monitoring** | Prometheus + Grafana + NVIDIA dcgm-exporter + node-exporter + cAdvisor | `stacks/monitoring/compose.yml` |
 | **ollama** | Local LLM inference on GPU | `stacks/ollama/compose.yml` |
 | **openclaw** | Self-hosted AI assistant (Ollama + Anthropic + OpenAI) | `stacks/openclaw/compose.yml` |
@@ -38,6 +39,7 @@ This repo is the single source of truth for a self-hosted AI + mining server man
 infra
 postgres
 redis
+qdrant
 monitoring
 ollama
 openclaw
@@ -227,6 +229,18 @@ PostgreSQL 16 on the `proxy` network. Other stacks reach it at `postgres:5432`. 
 
 Redis 7 with AOF persistence, capped at 256 MB. Other stacks reach it at `redis:6379`.
 
+### qdrant
+
+Vector database for storing embeddings and enabling semantic search (RAG). Ollama generates embeddings locally, Qdrant stores and indexes them, and OpenClaw queries them for context-aware responses.
+
+The REST API is available at `qdrant:6333` on the `proxy` network. The gRPC API is on port `6334`.
+
+After deploying, verify:
+
+```bash
+curl http://camp-fai:6333/healthz
+```
+
 ### monitoring
 
 Full observability stack. Grafana auto-provisions Prometheus as a data source on first boot.
@@ -298,7 +312,7 @@ docker run --rm \
   alpine sh -c "cd /v && tar czf /b/grafana-data-$(date +%F).tgz ."
 ```
 
-Key volumes to back up: `grafana-data`, `prometheus-data`, `postgres-data`, `ollama-data`, `openclaw-config`, `portainer_data`.
+Key volumes to back up: `grafana-data`, `prometheus-data`, `postgres-data`, `qdrant-data`, `ollama-data`, `openclaw-config`, `portainer_data`.
 
 ### Automate
 
@@ -324,6 +338,7 @@ stacks/
   infra/compose.yml              # Traefik reverse proxy
   postgres/compose.yml           # PostgreSQL 16
   redis/compose.yml              # Redis 7
+  qdrant/compose.yml             # Vector database (RAG)
   monitoring/
     compose.yml                  # Prometheus + Grafana + exporters
     prometheus.yml               # Scrape config
