@@ -33,9 +33,9 @@ fi
 echo "==> Creating host directories"
 mkdir -p \
   "${OPENCLAW_ROOT}/config" \
+  "${OPENCLAW_ROOT}/config/skills" \
   "${OPENCLAW_ROOT}/workspace" \
   "${OPENCLAW_ROOT}/workspace/${WORKSPACE_SUBDIR}" \
-  "${OPENCLAW_ROOT}/.skillet" \
   "${CERT_DIR}" \
   "${TRAEFIK_DIR}" \
   "${BACKUP_DIR}"
@@ -79,7 +79,7 @@ if [[ -n "${OPENCLAW_SKILLS// }" ]]; then
     exit 1
   fi
 
-  echo "==> Preinstalling OpenClaw skills into ${OPENCLAW_ROOT}/.skillet"
+  echo "==> Preinstalling OpenClaw skills into ${OPENCLAW_ROOT}/config/skills"
   echo "    Skills: ${OPENCLAW_SKILLS}"
 
   echo "${OPENCLAW_SKILLS}" | tr "," "\n" | while IFS= read -r skill; do
@@ -94,7 +94,8 @@ if [[ -n "${OPENCLAW_SKILLS// }" ]]; then
       continue
     fi
 
-    target_dir="${OPENCLAW_ROOT}/.skillet/${skill}"
+    skill_dir_name="$(echo "${skill}" | tr '/:' '__')"
+    target_dir="${OPENCLAW_ROOT}/config/skills/${skill_dir_name}"
     repo_url="https://github.com/${skill}.git"
 
     if [[ -d "${target_dir}" ]]; then
@@ -107,7 +108,7 @@ if [[ -n "${OPENCLAW_SKILLS// }" ]]; then
     git clone --depth 1 "${repo_url}" "${target_dir}"
   done
 
-  chown -R "${OPENCLAW_UID}:${OPENCLAW_GID}" "${OPENCLAW_ROOT}/.skillet"
+  chown -R "${OPENCLAW_UID}:${OPENCLAW_GID}" "${OPENCLAW_ROOT}/config/skills"
 fi
 
 echo
@@ -115,6 +116,7 @@ echo "Bootstrap complete."
 echo "Domain: ${DOMAIN}"
 echo "Certificate: ${CERT_FILE}"
 echo "Traefik dynamic config: ${DYNAMIC_FILE}"
+echo "OpenClaw skills path: ${OPENCLAW_ROOT}/config/skills"
 echo "Workspace code path: ${OPENCLAW_ROOT}/workspace/${WORKSPACE_SUBDIR}"
 echo
 echo "Next step: in Portainer, pull and redeploy the infra stack."

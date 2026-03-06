@@ -60,7 +60,7 @@ sudo DOMAIN=camp-fai CERT_BASENAME=camp-fai \
   /path/to/AI_server_cachehive/scripts/bootstrap-server.sh
 ```
 
-`OPENCLAW_SKILLS` expects comma-separated GitHub repos (`owner/repo`). The script clones each skill into `/srv/openclaw/.skillet/<owner>/<repo>` and skips ones already installed.
+`OPENCLAW_SKILLS` expects comma-separated GitHub repos (`owner/repo`). The script clones each skill into `/srv/openclaw/config/skills/` (which maps to OpenClaw's `~/.openclaw/skills`) and skips ones already installed.
 
 If your domain is `cachehive.local`:
 
@@ -73,7 +73,7 @@ Optional flags:
 
 - `FORCE_CERTS=1` regenerate cert/key even if they already exist.
 - `FORCE_DYNAMIC=1` overwrite `/srv/traefik/dynamic.yml`.
-- `OPENCLAW_SKILLS="owner/repo-a,owner/repo-b"` preinstall skills into `/srv/openclaw/.skillet` before deploy.
+- `OPENCLAW_SKILLS="owner/repo-a,owner/repo-b"` preinstall skills into `/srv/openclaw/config/skills` before deploy.
 - `WORKSPACE_SUBDIR=development` choose workspace subfolder name under `/srv/openclaw/workspace/`.
 
 ### Deploy stacks in Portainer (this order)
@@ -393,6 +393,12 @@ docker exec -it openclaw openclaw devices approve <REQUEST_ID>
 4. Remove tokenized URLs from browser history after successful login.
 
 If the UI shows lockout (`too many failed authentication attempts`), wait 2-3 minutes or restart `openclaw` and retry once.
+
+To verify loaded skills from inside the container:
+
+```bash
+docker exec -it openclaw openclaw skills list
+```
 
 ### quai-miner
 
