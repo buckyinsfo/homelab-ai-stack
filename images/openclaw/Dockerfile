@@ -9,9 +9,13 @@ RUN apt-get update && \
 ENV BUN_INSTALL=/opt/bun
 ENV PATH="${BUN_INSTALL}/bin:${PATH}"
 
-RUN curl -fsSL https://bun.sh/install | BUN_INSTALL="${BUN_INSTALL}" bash && \
-    "${BUN_INSTALL}/bin/bun" install -g https://github.com/tobi/qmd && \
-    command -v qmd >/dev/null 2>&1
+RUN set -eux; \
+    export BUN_INSTALL=/opt/bun; \
+    curl -fsSL https://bun.sh/install | bash; \
+    /opt/bun/bin/bun --version; \
+    /opt/bun/bin/bun install -g https://github.com/tobi/qmd; \
+    ln -sf /opt/bun/bin/qmd /usr/local/bin/qmd; \
+    /usr/local/bin/qmd --help >/dev/null 2>&1
 
 RUN chown -R node:node /opt/bun
 
