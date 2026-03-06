@@ -12,8 +12,6 @@ services:
     volumes:
       - /srv/openclaw/config:/home/node/.openclaw
       - /srv/openclaw/workspace:/home/node/workspace
-    ports:
-      - "18789:18789"
     networks:
       - proxy
     labels:
