@@ -311,6 +311,44 @@ After first deploy, run the setup wizard:
 docker exec -it openclaw node dist/index.js setup
 ```
 
+#### Rotate OpenClaw auth token (host-side secret)
+
+OpenClaw auth token is stored on the host at `/srv/openclaw/config/openclaw.json` and is **not** managed by GitOps.
+
+On `camp-fai`:
+
+```bash
+# 1) Backup current config
+sudo cp /srv/openclaw/config/openclaw.json /srv/openclaw/config/openclaw.json.bak.$(date +%F-%H%M%S)
+
+# 2) Generate and set a new token
+NEW_TOKEN=$(openssl rand -hex 32)
+sudo sed -E -i 's#("token"[[:space:]]*:[[:space:]]*")[^"]+(")#\1'"$NEW_TOKEN"'\2#' /srv/openclaw/config/openclaw.json
+
+# 3) Restart OpenClaw
+docker restart openclaw
+
+# 4) Verify host + container read the same token
+sudo grep -nE '"auth"|"token"' /srv/openclaw/config/openclaw.json
+docker exec openclaw sh -lc "grep -nE '\"auth\"|\"token\"' /home/node/.openclaw/openclaw.json"
+```
+
+Usability check (from any browser on LAN):
+
+1. Open a private window with:
+   - `https://openclaw.camp-fai/?gatewayUrl=wss://openclaw.camp-fai&token=<NEW_TOKEN>`
+2. If UI shows `pairing required`, approve the pending device on `camp-fai`:
+
+```bash
+docker exec -it openclaw openclaw devices list
+docker exec -it openclaw openclaw devices approve <REQUEST_ID>
+```
+
+3. Refresh the browser and confirm dashboard connects and chat session loads.
+4. Remove tokenized URLs from browser history after successful login.
+
+If the UI shows lockout (`too many failed authentication attempts`), wait 2-3 minutes or restart `openclaw` and retry once.
+
 ### quai-miner
 
 Rigel GPU miner for Quai (KawPow). Set `ALGO`, `POOL`, `WALLET`, and `WORKER` in Portainer environment variables. See `stacks/quai-miner/.env.example` for defaults.
