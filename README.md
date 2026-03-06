@@ -348,7 +348,7 @@ The Ollama API is available to other containers on the `proxy` network at `http:
 
 ### openclaw
 
-Self-hosted AI assistant. Connects to Ollama for local models and to Anthropic/OpenAI for cloud models. Set `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` in Portainer environment variables.
+Self-hosted AI assistant. Connects to Ollama for local models and to Anthropic/OpenAI for cloud models. Set `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, and `EXA_API_KEY` in Portainer environment variables.
 
 This stack builds a custom image from `images/openclaw/Dockerfile` so required skill runtime binaries (`bun` and `qmd`) are preinstalled at image build time.
 
@@ -357,6 +357,8 @@ After first deploy, run the setup wizard:
 ```bash
 docker exec -it openclaw node dist/index.js setup
 ```
+
+If you want Exa web search available in OpenClaw skills, configure `EXA_API_KEY` and install an Exa skill (for example via `OPENCLAW_SKILLS="owner/repo"` in `scripts/bootstrap-server.sh`).
 
 #### Rotate OpenClaw auth token (host-side secret)
 
