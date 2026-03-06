@@ -2,7 +2,6 @@ services:
   openclaw:
     build:
       context: ../../images/openclaw
-    image: cachehive/openclaw
     container_name: openclaw
     restart: unless-stopped
 
