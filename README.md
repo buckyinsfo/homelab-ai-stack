@@ -60,6 +60,8 @@ sudo DOMAIN=camp-fai CERT_BASENAME=camp-fai \
   /path/to/AI_server_cachehive/scripts/bootstrap-server.sh
 ```
 
+`OPENCLAW_SKILLS` expects comma-separated GitHub repos (`owner/repo`). The script clones each skill into `/srv/openclaw/.skillet/<owner>/<repo>` and skips ones already installed.
+
 If your domain is `cachehive.local`:
 
 ```bash
@@ -71,7 +73,7 @@ Optional flags:
 
 - `FORCE_CERTS=1` regenerate cert/key even if they already exist.
 - `FORCE_DYNAMIC=1` overwrite `/srv/traefik/dynamic.yml`.
-- `OPENCLAW_SKILLS="owner/skill-a,owner/skill-b"` preinstall skills into `/srv/openclaw/.skillet` before deploy.
+- `OPENCLAW_SKILLS="owner/repo-a,owner/repo-b"` preinstall skills into `/srv/openclaw/.skillet` before deploy.
 - `WORKSPACE_SUBDIR=development` choose workspace subfolder name under `/srv/openclaw/workspace/`.
 
 ### Deploy stacks in Portainer (this order)

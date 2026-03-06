@@ -7,7 +7,6 @@ CERT_DAYS="${CERT_DAYS:-3650}"
 OPENCLAW_UID="${OPENCLAW_UID:-1000}"
 OPENCLAW_GID="${OPENCLAW_GID:-1000}"
 WORKSPACE_SUBDIR="${WORKSPACE_SUBDIR:-development}"
-OPENCLAW_IMAGE="${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:latest}"
 OPENCLAW_SKILLS="${OPENCLAW_SKILLS:-}"
 FORCE_CERTS="${FORCE_CERTS:-0}"
 FORCE_DYNAMIC="${FORCE_DYNAMIC:-0}"
@@ -75,32 +74,40 @@ fi
 chmod 644 "${DYNAMIC_FILE}"
 
 if [[ -n "${OPENCLAW_SKILLS// }" ]]; then
-  if ! command -v docker >/dev/null 2>&1; then
-    echo "docker is required to preinstall OpenClaw skills (OPENCLAW_SKILLS)."
+  if ! command -v git >/dev/null 2>&1; then
+    echo "git is required to preinstall OpenClaw skills (OPENCLAW_SKILLS)."
     exit 1
   fi
 
   echo "==> Preinstalling OpenClaw skills into ${OPENCLAW_ROOT}/.skillet"
   echo "    Skills: ${OPENCLAW_SKILLS}"
-  echo "    Image:  ${OPENCLAW_IMAGE}"
 
-  docker run --rm \
-    -u "${OPENCLAW_UID}:${OPENCLAW_GID}" \
-    -v "${OPENCLAW_ROOT}/.skillet:/home/node/.skillet" \
-    -e SKILLS_CSV="${OPENCLAW_SKILLS}" \
-    --entrypoint sh "${OPENCLAW_IMAGE}" -c '
-      set -eu
-      echo "$SKILLS_CSV" | tr "," "\n" | while IFS= read -r skill; do
-        skill="$(echo "$skill" | xargs)"
-        [ -n "$skill" ] || continue
-        if [ ! -d "/home/node/.skillet/$skill" ]; then
-          echo "Installing $skill"
-          npx --yes skillet install "$skill"
-        else
-          echo "$skill already installed"
-        fi
-      done
-    '
+  echo "${OPENCLAW_SKILLS}" | tr "," "\n" | while IFS= read -r skill; do
+    skill="$(echo "${skill}" | xargs)"
+    [ -n "${skill}" ] || continue
+
+    # Allow optional github: prefix in skill entries.
+    skill="${skill#github:}"
+
+    if [[ "${skill}" != */* ]]; then
+      echo "Skipping '${skill}': expected GitHub owner/repo format."
+      continue
+    fi
+
+    target_dir="${OPENCLAW_ROOT}/.skillet/${skill}"
+    repo_url="https://github.com/${skill}.git"
+
+    if [[ -d "${target_dir}" ]]; then
+      echo "${skill} already installed"
+      continue
+    fi
+
+    echo "Installing ${skill}"
+    mkdir -p "$(dirname "${target_dir}")"
+    git clone --depth 1 "${repo_url}" "${target_dir}"
+  done
+
+  chown -R "${OPENCLAW_UID}:${OPENCLAW_GID}" "${OPENCLAW_ROOT}/.skillet"
 fi
 
 echo
