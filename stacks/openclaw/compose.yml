@@ -26,12 +26,6 @@ services:
       traefik.http.routers.openclaw.tls: "true"
       traefik.http.services.openclaw.loadbalancer.server.port: "18789"
 
-    command: >
-      sh -c "
-      npx skillet install levineam/qmd-skill &&
-      exec /usr/local/bin/docker-entrypoint.sh
-      "
-
 networks:
   proxy:
     external: true
