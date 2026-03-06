@@ -1,0 +1,6 @@
+tls:
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /etc/certs/camp-fai.crt
+        keyFile: /etc/certs/camp-fai.key

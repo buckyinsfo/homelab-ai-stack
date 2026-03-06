@@ -213,13 +213,52 @@ Creates the shared `proxy` network that all other stacks join. Routes traffic by
 
 | Service | URL |
 |---|---|
-| Traefik dashboard | `http://traefik.cachehive.local` or `:8080` |
-| Grafana | `http://grafana.cachehive.local` or `:3000` |
-| Prometheus | `http://prometheus.cachehive.local` or `:9090` |
-| Ollama API | `http://ollama.cachehive.local` or `:11434` |
-| OpenClaw | `http://openclaw.cachehive.local` or `:18789` |
+| Traefik dashboard | `https://traefik.cachehive.local` |
+| Grafana | `https://grafana.cachehive.local` |
+| Prometheus | `https://prometheus.cachehive.local` |
+| Ollama API | `https://ollama.cachehive.local` |
+| OpenClaw | `https://openclaw.cachehive.local` |
 
 > **Note:** For the `.local` hostnames to work on your LAN, add entries to your DNS server or `/etc/hosts` on client machines pointing to the server's IP.
+
+#### Traefik default TLS certificate (host file)
+
+The `infra` stack mounts a host file at `/srv/traefik/dynamic.yml` and loads it with:
+
+```yaml
+--providers.file.filename=/etc/traefik/dynamic.yml
+```
+
+Versioned template: `stacks/infra/dynamic.example.yml`
+
+Create a self-signed cert on the server:
+
+```bash
+sudo mkdir -p /srv/certs
+sudo openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+  -keyout /srv/certs/camp-fai.key \
+  -out /srv/certs/camp-fai.crt \
+  -subj "/CN=camp-fai" \
+  -addext "subjectAltName=DNS:camp-fai,DNS:*.camp-fai"
+```
+
+Then create the dynamic Traefik TLS config:
+
+```bash
+sudo mkdir -p /srv/traefik
+sudo tee /srv/traefik/dynamic.yml > /dev/null <<'EOF'
+tls:
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /etc/certs/camp-fai.crt
+        keyFile: /etc/certs/camp-fai.key
+EOF
+```
+
+If your domain is not `camp-fai` (for example `cachehive.local`), change both cert filenames and the `CN`/`subjectAltName` values to match your domain.
+
+Then redeploy the `infra` stack in Portainer (or restart Traefik) to apply changes.
 
 ### postgres
 
