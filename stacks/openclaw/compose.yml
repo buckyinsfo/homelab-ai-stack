@@ -1,6 +1,8 @@
 services:
   openclaw:
-    image: ghcr.io/openclaw/openclaw:latest
+    build:
+      context: ../../images/openclaw
+    image: cachehive/openclaw
     container_name: openclaw
     restart: unless-stopped
 

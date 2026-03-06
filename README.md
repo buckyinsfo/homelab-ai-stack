@@ -350,6 +350,8 @@ The Ollama API is available to other containers on the `proxy` network at `http:
 
 Self-hosted AI assistant. Connects to Ollama for local models and to Anthropic/OpenAI for cloud models. Set `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` in Portainer environment variables.
 
+This stack builds a custom image from `images/openclaw/Dockerfile` so required skill runtime binaries (`bun` and `qmd`) are preinstalled at image build time.
+
 After first deploy, run the setup wizard:
 
 ```bash
@@ -475,6 +477,7 @@ stacks/
   openclaw/compose.yml           # AI assistant
   quai-miner/compose.yml         # GPU miner
 images/
+  openclaw/Dockerfile            # Custom OpenClaw image (bun + qmd preinstalled)
   rigel/Dockerfile               # Custom Rigel miner image
 scripts/
   bootstrap-server.sh            # Create /srv paths, certs, and Traefik dynamic.yml
