@@ -33,6 +33,27 @@ This repo is the single source of truth for a self-hosted AI + mining server man
 5. Install Portainer
 ```
 
+### Host filesystem bootstrap (before Portainer stack deploys)
+
+Run this once on `camp-fai` to create required host paths (`/srv/openclaw/*`, `/srv/certs`, `/srv/traefik`, `/srv/backups/volumes`), set OpenClaw ownership, generate self-signed certs, and write Traefik `dynamic.yml`.
+
+```bash
+sudo DOMAIN=camp-fai CERT_BASENAME=camp-fai \
+  /path/to/AI_server_cachehive/scripts/bootstrap-server.sh
+```
+
+If your domain is `cachehive.local`:
+
+```bash
+sudo DOMAIN=cachehive.local CERT_BASENAME=cachehive.local \
+  /path/to/AI_server_cachehive/scripts/bootstrap-server.sh
+```
+
+Optional flags:
+
+- `FORCE_CERTS=1` regenerate cert/key even if they already exist.
+- `FORCE_DYNAMIC=1` overwrite `/srv/traefik/dynamic.yml`.
+
 ### Deploy stacks in Portainer (this order)
 
 ```
@@ -231,6 +252,8 @@ The `infra` stack mounts a host file at `/srv/traefik/dynamic.yml` and loads it 
 
 Versioned template: `stacks/infra/dynamic.example.yml`
 
+Recommended: use `scripts/bootstrap-server.sh` to create certs + `dynamic.yml` automatically.
+
 Create a self-signed cert on the server:
 
 ```bash
@@ -425,4 +448,6 @@ stacks/
   quai-miner/compose.yml         # GPU miner
 images/
   rigel/Dockerfile               # Custom Rigel miner image
+scripts/
+  bootstrap-server.sh            # Create /srv paths, certs, and Traefik dynamic.yml
 ```

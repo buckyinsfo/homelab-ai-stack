@@ -3,23 +3,34 @@ services:
     image: ghcr.io/openclaw/openclaw:latest
     container_name: openclaw
     restart: unless-stopped
+
     environment:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       OLLAMA_BASE_URL: http://ollama:11434
       OPENCLAW_BIND: lan
       OPENCLAW_ALLOW_INSECURE_PRIVATE_WS: "1"
+
     volumes:
       - /srv/openclaw/config:/home/node/.openclaw
       - /srv/openclaw/workspace:/home/node/workspace
+      - /srv/openclaw/.skillet:/home/node/.skillet
+
     networks:
       - proxy
+
     labels:
       traefik.enable: "true"
       traefik.http.routers.openclaw.rule: "Host(`openclaw.${DOMAIN}`)"
       traefik.http.routers.openclaw.entrypoints: "websecure"
       traefik.http.routers.openclaw.tls: "true"
       traefik.http.services.openclaw.loadbalancer.server.port: "18789"
+
+    command: >
+      sh -c "
+      npx skillet install levineam/qmd-skill &&
+      exec /usr/local/bin/docker-entrypoint.sh
+      "
 
 networks:
   proxy:
