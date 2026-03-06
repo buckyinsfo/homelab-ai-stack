@@ -6,6 +6,9 @@ CERT_BASENAME="${CERT_BASENAME:-$DOMAIN}"
 CERT_DAYS="${CERT_DAYS:-3650}"
 OPENCLAW_UID="${OPENCLAW_UID:-1000}"
 OPENCLAW_GID="${OPENCLAW_GID:-1000}"
+WORKSPACE_SUBDIR="${WORKSPACE_SUBDIR:-development}"
+OPENCLAW_IMAGE="${OPENCLAW_IMAGE:-ghcr.io/openclaw/openclaw:latest}"
+OPENCLAW_SKILLS="${OPENCLAW_SKILLS:-}"
 FORCE_CERTS="${FORCE_CERTS:-0}"
 FORCE_DYNAMIC="${FORCE_DYNAMIC:-0}"
 
@@ -32,6 +35,7 @@ echo "==> Creating host directories"
 mkdir -p \
   "${OPENCLAW_ROOT}/config" \
   "${OPENCLAW_ROOT}/workspace" \
+  "${OPENCLAW_ROOT}/workspace/${WORKSPACE_SUBDIR}" \
   "${OPENCLAW_ROOT}/.skillet" \
   "${CERT_DIR}" \
   "${TRAEFIK_DIR}" \
@@ -70,10 +74,40 @@ fi
 
 chmod 644 "${DYNAMIC_FILE}"
 
+if [[ -n "${OPENCLAW_SKILLS// }" ]]; then
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "docker is required to preinstall OpenClaw skills (OPENCLAW_SKILLS)."
+    exit 1
+  fi
+
+  echo "==> Preinstalling OpenClaw skills into ${OPENCLAW_ROOT}/.skillet"
+  echo "    Skills: ${OPENCLAW_SKILLS}"
+  echo "    Image:  ${OPENCLAW_IMAGE}"
+
+  docker run --rm \
+    -u "${OPENCLAW_UID}:${OPENCLAW_GID}" \
+    -v "${OPENCLAW_ROOT}/.skillet:/home/node/.skillet" \
+    -e SKILLS_CSV="${OPENCLAW_SKILLS}" \
+    --entrypoint sh "${OPENCLAW_IMAGE}" -c '
+      set -eu
+      echo "$SKILLS_CSV" | tr "," "\n" | while IFS= read -r skill; do
+        skill="$(echo "$skill" | xargs)"
+        [ -n "$skill" ] || continue
+        if [ ! -d "/home/node/.skillet/$skill" ]; then
+          echo "Installing $skill"
+          npx --yes skillet install "$skill"
+        else
+          echo "$skill already installed"
+        fi
+      done
+    '
+fi
+
 echo
 echo "Bootstrap complete."
 echo "Domain: ${DOMAIN}"
 echo "Certificate: ${CERT_FILE}"
 echo "Traefik dynamic config: ${DYNAMIC_FILE}"
+echo "Workspace code path: ${OPENCLAW_ROOT}/workspace/${WORKSPACE_SUBDIR}"
 echo
 echo "Next step: in Portainer, pull and redeploy the infra stack."

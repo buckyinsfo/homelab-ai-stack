@@ -42,6 +42,24 @@ sudo DOMAIN=camp-fai CERT_BASENAME=camp-fai \
   /path/to/AI_server_cachehive/scripts/bootstrap-server.sh
 ```
 
+By default this also creates `/srv/openclaw/workspace/development` for git clones and dev work.
+
+Option 2 (no local clone on server): pull bootstrap script directly from GitHub:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/buckyinsfo/AI_server_cachehive/main/scripts/bootstrap-server.sh -o /tmp/bootstrap-server.sh
+chmod +x /tmp/bootstrap-server.sh
+sudo DOMAIN=camp-fai CERT_BASENAME=camp-fai /tmp/bootstrap-server.sh
+```
+
+With OpenClaw skill preinstall:
+
+```bash
+sudo DOMAIN=camp-fai CERT_BASENAME=camp-fai \
+  OPENCLAW_SKILLS="levineam/qmd-skill" \
+  /path/to/AI_server_cachehive/scripts/bootstrap-server.sh
+```
+
 If your domain is `cachehive.local`:
 
 ```bash
@@ -53,6 +71,8 @@ Optional flags:
 
 - `FORCE_CERTS=1` regenerate cert/key even if they already exist.
 - `FORCE_DYNAMIC=1` overwrite `/srv/traefik/dynamic.yml`.
+- `OPENCLAW_SKILLS="owner/skill-a,owner/skill-b"` preinstall skills into `/srv/openclaw/.skillet` before deploy.
+- `WORKSPACE_SUBDIR=development` choose workspace subfolder name under `/srv/openclaw/workspace/`.
 
 ### Deploy stacks in Portainer (this order)
 
