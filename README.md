@@ -348,7 +348,7 @@ The Ollama API is available to other containers on the `proxy` network at `http:
 
 ### openclaw
 
-Self-hosted AI assistant. Connects to Ollama for local models and to Anthropic/OpenAI for cloud models. Set `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, and `EXA_API_KEY` in Portainer environment variables.
+Self-hosted AI assistant. Connects to Ollama for local models and to Anthropic/OpenAI/OpenRouter for cloud models. Set `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, and `EXA_API_KEY` in Portainer environment variables.
 
 This stack builds a custom image from `images/openclaw/Dockerfile` so required skill runtime binaries (`bun` and `qmd`) are preinstalled at image build time.
 
@@ -359,6 +359,29 @@ docker exec -it openclaw node dist/index.js setup
 ```
 
 If you want Exa web search available in OpenClaw skills, configure `EXA_API_KEY` and install an Exa skill (for example via `OPENCLAW_SKILLS="owner/repo"` in `scripts/bootstrap-server.sh`).
+
+OpenRouter API smoke test (from `camp-fai`):
+
+```bash
+export OPENROUTER_API_KEY='sk-or-v1-REPLACE_ME'
+curl -sS https://openrouter.ai/api/v1/models \
+  -H "Authorization: Bearer ${OPENROUTER_API_KEY}" \
+  -H "Content-Type: application/json"
+```
+
+Expected: JSON response containing a `data` array of available models.
+
+Exa API smoke test (from `camp-fai`):
+
+```bash
+export EXA_API_KEY='exa-REPLACE_ME'
+curl -sS https://api.exa.ai/search \
+  -H "x-api-key: ${EXA_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"latest nvidia driver rocky linux","numResults":1}'
+```
+
+Expected: JSON response with `results` and non-zero `searchTime`.
 
 #### Rotate OpenClaw auth token (host-side secret)
 
