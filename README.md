@@ -27,7 +27,7 @@ These can be the same value if you're routing by hostname rather than a separate
 | **postgres** | PostgreSQL 16 database | `stacks/postgres/compose.yml` | No |
 | **redis** | Redis 7 cache / message broker | `stacks/redis/compose.yml` | No |
 | **qdrant** | Vector database for RAG / semantic search | `stacks/qdrant/compose.yml` | No |
-| **monitoring** | Prometheus + Grafana + NVIDIA dcgm-exporter + node-exporter + cAdvisor | `stacks/monitoring/compose.yml` | No |
+| **monitoring** | Prometheus + Grafana + AMD device-metrics-exporter + node-exporter + cAdvisor | `stacks/monitoring/compose.yml` | No |
 | **ollama** | Local LLM inference on GPU | `stacks/ollama/compose.yml` | No |
 | **openclaw** | Self-hosted AI assistant (Ollama + Anthropic + OpenAI) | `stacks/openclaw/compose.yml` | No |
 | **openwebui** | Browser chat UI for Ollama | `stacks/openwebui/compose.yml` | No |
@@ -142,29 +142,33 @@ uname -r
 
 ---
 
-## 2) Install NVIDIA Driver
+## 2) Install AMD ROCm Driver
 
-### 2.1 Add NVIDIA repo
+### 2.1 Install amdgpu-install
 
 ```bash
-sudo dnf -y install dnf-plugins-core
-sudo dnf config-manager --add-repo \
-  http://developer.download.nvidia.com/compute/cuda/repos/rhel10/$(uname -m)/cuda-rhel10.repo
-
+sudo dnf install -y https://repo.radeon.com/amdgpu-install/6.3.1/el/9.4/amdgpu-install-6.3.1.60301-1.el9.noarch.rpm
 sudo dnf clean expire-cache
 ```
 
-### 2.2 Install driver
+### 2.2 Install ROCm
 
 ```bash
-sudo dnf -y install nvidia-driver
+sudo amdgpu-install -y --usecase=rocm
 sudo reboot
 ```
 
-### 2.3 Verify
+### 2.3 Add your user to the required groups
 
 ```bash
-nvidia-smi
+sudo usermod -aG render,video $USER
+newgrp render
+```
+
+### 2.4 Verify
+
+```bash
+rocm-smi
 ```
 
 ---
@@ -190,38 +194,42 @@ docker run --rm hello-world
 
 ---
 
-## 4) Install NVIDIA Container Toolkit
+## 4) Verify AMD GPU Docker Passthrough
+
+AMD does not require a container toolkit. GPU access is handled via device mounts (`/dev/kfd` and `/dev/dri`) directly in each compose file. Verify the devices exist on your host:
 
 ```bash
-sudo dnf -y install curl
-curl -s -L https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo | \
-  sudo tee /etc/yum.repos.d/nvidia-container-toolkit.repo
-
-sudo dnf -y install nvidia-container-toolkit
+ls /dev/kfd /dev/dri
 ```
 
-Configure the Docker runtime:
+Test GPU passthrough in Docker:
 
 ```bash
-sudo nvidia-ctk runtime configure --runtime=docker
-sudo systemctl restart docker
-```
-
-Verify GPU passthrough:
-
-```bash
-docker run --rm --gpus all nvidia/cuda:12.3.2-base-ubuntu22.04 nvidia-smi
+docker run --rm \
+  --device=/dev/kfd \
+  --device=/dev/dri \
+  --group-add video \
+  --group-add render \
+  rocm/rocm-terminal \
+  rocm-smi
 ```
 
 ---
 
 ## 5) GPU Tuning (Host-Level)
 
-### 5.1 Set power limit and persistence
+### 5.1 Set power limit
+
+Check current power usage and limits:
 
 ```bash
-sudo nvidia-smi -pm 1
-sudo nvidia-smi -pl 140
+rocm-smi --showpower
+```
+
+Set a power cap (replace `<WATTS>` with your target, e.g. `150`):
+
+```bash
+sudo rocm-smi --setpoweroverdrive <WATTS>
 ```
 
 ### 5.2 Make it survive reboots
@@ -229,13 +237,12 @@ sudo nvidia-smi -pl 140
 ```bash
 sudo tee /etc/systemd/system/gpu-tune.service >/dev/null <<'EOF'
 [Unit]
-Description=GPU tune (power limit + persistence)
+Description=GPU tune (power limit)
 After=multi-user.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/nvidia-smi -pm 1
-ExecStart=/usr/bin/nvidia-smi -pl 140
+ExecStart=/usr/bin/rocm-smi --setpoweroverdrive <WATTS>
 RemainAfterExit=true
 
 [Install]
@@ -365,10 +372,10 @@ curl http://<hostname>:6333/healthz
 
 Full observability stack. Grafana auto-provisions Prometheus as a data source on first boot.
 
-After deploying, import NVIDIA GPU dashboard in Grafana:
+After deploying, import the AMD GPU dashboard in Grafana:
 1. Go to **Dashboards → Import**
-2. Enter dashboard ID **12239** (or grab a newer JSON from the [dcgm-exporter repo](https://github.com/NVIDIA/dcgm-exporter))
-3. Select the Prometheus data source
+2. Download the dashboard JSON from the [ROCm device-metrics-exporter repo](https://github.com/ROCm/device-metrics-exporter/tree/main/grafana)
+3. Upload the JSON and select the Prometheus data source
 
 For host metrics, import Node Exporter Full (dashboard ID **1860**).
 
@@ -514,7 +521,7 @@ Each stack includes a `.env.example` showing which variables are required.
 
 ## 10) GPU Sharing Note
 
-The RTX 3070 has 8 GB VRAM. Running Ollama and the Quai miner simultaneously will compete for GPU memory. Options:
+Running Ollama and the Quai miner simultaneously will compete for GPU memory. Check your card's VRAM with `rocm-smi --showmeminfo vram`. Options:
 
 - **Time-share:** Stop the miner when using Ollama, and vice versa.
 - **VRAM budget:** Use a small model in Ollama (e.g., `llama3.2:1b`) alongside mining.
@@ -545,11 +552,11 @@ Run nightly via systemd timer or cron, and sync `/srv/backups` to NAS or cloud s
 ## Troubleshooting
 
 - **Portainer can't pull the repo** — check your PAT is valid and has `repo` scope.
-- **`docker run --gpus all` fails** — re-run `nvidia-ctk runtime configure` and restart Docker.
-- **dcgm-exporter crashes** — needs `SYS_ADMIN` capability and matching driver/DCGM versions.
+- **`/dev/kfd` not found** — verify ROCm is installed (`rocm-smi`) and your user is in the `render` and `video` groups.
+- **device-metrics-exporter crashes** — ensure `/dev/kfd` and `/dev/dri` exist on the host and the container has `group_add: [video, render]`.
 - **Ollama OOM** — pull a smaller model or stop the miner first.
 - **Traefik routes not working** — make sure the service has `traefik.enable: "true"` label and is on the `proxy` network.
-- **Mining performance drops** — verify `nvidia-smi` power limit is still applied and persistence mode is on.
+- **Mining performance drops** — verify `rocm-smi --showpower` and check power cap is still applied.
 
 ---
 

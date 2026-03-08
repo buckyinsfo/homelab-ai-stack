@@ -8,10 +8,10 @@ configs:
         - job_name: "prometheus"
           static_configs:
             - targets: ["localhost:9090"]
-        - job_name: "dcgm-exporter"
+        - job_name: "amd-gpu-metrics"
           scrape_interval: 5s
           static_configs:
-            - targets: ["dcgm-exporter:9400"]
+            - targets: ["device-metrics-exporter:5000"]
         - job_name: "node-exporter"
           static_configs:
             - targets: ["node-exporter:9100"]
@@ -79,21 +79,18 @@ services:
       traefik.http.routers.grafana.rule: "Host(`grafana.${DOMAIN}`)"
       traefik.http.services.grafana.loadbalancer.server.port: "3000"
 
-  dcgm-exporter:
-    image: nvcr.io/nvidia/k8s/dcgm-exporter:3.3.8-3.6.0-ubuntu22.04
-    container_name: dcgm-exporter
+  device-metrics-exporter:
+    image: rocm/device-metrics-exporter:latest
+    container_name: device-metrics-exporter
     restart: unless-stopped
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    cap_add:
-      - SYS_ADMIN
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
     ports:
-      - "9400:9400"
+      - "5000:5000"
     networks:
       - monitoring
 
