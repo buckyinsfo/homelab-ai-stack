@@ -11,6 +11,7 @@ OPENCLAW_SKILLS="${OPENCLAW_SKILLS:-}"
 FORCE_CERTS="${FORCE_CERTS:-0}"
 FORCE_DYNAMIC="${FORCE_DYNAMIC:-0}"
 
+DATA_DIR="${DATA_DIR:-/home/docker-data}"
 OPENCLAW_ROOT="/srv/openclaw"
 CERT_DIR="/srv/certs"
 TRAEFIK_DIR="/srv/traefik"
@@ -29,6 +30,29 @@ if ! command -v openssl >/dev/null 2>&1; then
   echo "openssl is required but not installed."
   exit 1
 fi
+
+echo "==> Setting up Docker data directories on large filesystem (${DATA_DIR})"
+# On most default Linux installs / is small (70-100G) while /home is large.
+# We create the actual data directories under DATA_DIR and symlink them into
+# /var/lib/docker/volumes so Docker volume mounts land on the large filesystem.
+DOCKER_VOLUMES="/var/lib/docker/volumes"
+mkdir -p "${DATA_DIR}"
+for service in ollama postgres redis qdrant openwebui; do
+  target="${DATA_DIR}/${service}"
+  link="${DOCKER_VOLUMES}/${service}-data"
+  if [[ ! -d "${target}" ]]; then
+    mkdir -p "${target}"
+    echo "  Created ${target}"
+  else
+    echo "  ${target} already exists, skipping"
+  fi
+  if [[ ! -L "${link}" && ! -e "${link}" ]]; then
+    ln -s "${target}" "${link}"
+    echo "  Symlinked ${link} -> ${target}"
+  else
+    echo "  ${link} already exists, skipping"
+  fi
+done
 
 echo "==> Creating host directories"
 mkdir -p \
@@ -119,4 +143,5 @@ echo "Traefik dynamic config: ${DYNAMIC_FILE}"
 echo "OpenClaw skills path: ${OPENCLAW_ROOT}/config/skills"
 echo "Workspace code path: ${OPENCLAW_ROOT}/workspace/${WORKSPACE_SUBDIR}"
 echo
+echo "Docker data path: ${DATA_DIR} (ollama, postgres, redis, qdrant, openwebui)"
 echo "Next step: in Portainer, pull and redeploy the infra stack."
