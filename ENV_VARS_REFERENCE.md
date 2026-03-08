@@ -109,11 +109,8 @@ No environment variables required.
 | Variable | Required | Example / Default | Description |
 |---|---|---|---|
 | `DOMAIN` | ✅ Yes | `<domain>` | Used in the Traefik routing rule (`ai.${DOMAIN}`). |
-| `POSTGRES_USER` | ✅ Yes | `<db-user>` | Must match the value set in the `postgres` stack. |
-| `POSTGRES_PASSWORD` | ✅ Yes | *(strong secret)* | Must match the value set in the `postgres` stack. |
-| `POSTGRES_DB` | ✅ Yes | `<db-name>` | Must match the value set in the `postgres` stack. |
 
-> Connects to Ollama at `http://ollama:11434` and Postgres at `postgres:5432` (both hardcoded in compose). After deploying, open `https://ai.<DOMAIN>` and create an admin account on the first-run screen.
+> Connects to Ollama at `http://ollama:11434` (hardcoded in compose). Uses SQLite for local storage (stored in the `openwebui-data` volume). After deploying, open `https://ai.<DOMAIN>` and create an admin account on the first-run screen.
 
 ---
 
