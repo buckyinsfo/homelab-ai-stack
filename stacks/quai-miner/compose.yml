@@ -2,7 +2,7 @@ services:
   rigel:
     build:
       context: ../../images/rigel
-    image: cachehive/rigel
+    image: local/rigel
     container_name: rigel
     restart: unless-stopped
     deploy:

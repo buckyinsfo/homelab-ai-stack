@@ -1,95 +1,129 @@
 # AI Server CacheHive
 
-Reproducible Rocky Linux GPU server — rebuild from bare metal in about 5 minutes.
+Self-hosted AI + GPU mining server on Rocky Linux — fully reproducible from bare metal using **Portainer GitOps**.
 
-This repo is the single source of truth for a self-hosted AI + mining server managed entirely through **Portainer GitOps**. Every stack is a Docker Compose file deployed from this repo.
+This repo is the single source of truth. Every stack is a Docker Compose file deployed directly from GitHub. Rebuilding from scratch takes roughly 20–30 minutes (most of that is image pulls and the custom image builds).
 
 ---
 
-## What's in the Box
+## Before You Begin — Placeholders
 
-| Stack | Purpose | Compose Path |
+Two placeholders are used throughout this document. **Do a find-and-replace in your notes or editor before following the steps.**
+
+| Placeholder | What to replace it with | Example |
 |---|---|---|
-| **infra** | Traefik reverse proxy + shared `proxy` network | `stacks/infra/compose.yml` |
-| **postgres** | PostgreSQL 16 database | `stacks/postgres/compose.yml` |
-| **redis** | Redis 7 cache / message broker | `stacks/redis/compose.yml` |
-| **qdrant** | Vector database for RAG / semantic search | `stacks/qdrant/compose.yml` |
-| **monitoring** | Prometheus + Grafana + NVIDIA dcgm-exporter + node-exporter + cAdvisor | `stacks/monitoring/compose.yml` |
-| **ollama** | Local LLM inference on GPU | `stacks/ollama/compose.yml` |
-| **openclaw** | Self-hosted AI assistant (Ollama + Anthropic + OpenAI) | `stacks/openclaw/compose.yml` |
-| **quai-miner** | Rigel GPU miner (Quai / KawPow) | `stacks/quai-miner/compose.yml` |
+| `<hostname>` | Your server's hostname — used for direct SSH/port access | `camp-fai` |
+| `<domain>` | Your Traefik routing domain — used in DNS, URLs, and certs | `myserver.local` |
+
+These can be the same value if you're routing by hostname rather than a separate local domain.
 
 ---
 
-## Deploy Order for a Fresh Server
+## Stack Overview
 
-### Host setup (one-time)
+| Stack | Purpose | Compose Path | Optional |
+|---|---|---|---|
+| **infra** | Traefik reverse proxy + shared `proxy` network | `stacks/infra/compose.yml` | No |
+| **postgres** | PostgreSQL 16 database | `stacks/postgres/compose.yml` | No |
+| **redis** | Redis 7 cache / message broker | `stacks/redis/compose.yml` | No |
+| **qdrant** | Vector database for RAG / semantic search | `stacks/qdrant/compose.yml` | No |
+| **monitoring** | Prometheus + Grafana + NVIDIA dcgm-exporter + node-exporter + cAdvisor | `stacks/monitoring/compose.yml` | No |
+| **ollama** | Local LLM inference on GPU | `stacks/ollama/compose.yml` | No |
+| **openclaw** | Self-hosted AI assistant (Ollama + Anthropic + OpenAI) | `stacks/openclaw/compose.yml` | No |
+| **openwebui** | Browser chat UI for Ollama | `stacks/openwebui/compose.yml` | No |
+| **adminer** | Web-based Postgres (and multi-DB) admin UI | `stacks/adminer/compose.yml` | No |
+| **quai-miner** | Rigel GPU miner (Quai / KawPow) | `stacks/quai-miner/compose.yml` | Yes |
+
+---
+
+## Install Order at a Glance
 
 ```
-1. Install Rocky Linux
-2. Install NVIDIA driver
-3. Install Docker
-4. Install NVIDIA Container Toolkit
-5. Install Portainer
+1.  Rocky Linux OS install
+2.  NVIDIA driver
+3.  Docker
+4.  NVIDIA Container Toolkit
+5.  GPU tuning (power limit, persistence)
+6.  Portainer
+7.  Run bootstrap-server.sh  ← creates /srv paths, certs, Traefik config
+8.  Add repo to Portainer GitOps
+9.  Deploy stacks in order:
+      infra → postgres → redis → qdrant → monitoring → ollama
+      → openclaw → openwebui → adminer → quai-miner (paused)
 ```
+
+> **Prepare env vars before you start deploying.** See [`ENV_VARS_REFERENCE.md`](ENV_VARS_REFERENCE.md) for a table of every variable per stack and a copy-paste cheatsheet.
+
+---
+
+## Deploy Order Details
 
 ### Host filesystem bootstrap (before Portainer stack deploys)
 
-Run this once on `camp-fai` to create required host paths (`/srv/openclaw/*`, `/srv/certs`, `/srv/traefik`, `/srv/backups/volumes`), set OpenClaw ownership, generate self-signed certs, and write Traefik `dynamic.yml`.
+Run this once on `<hostname>` to create required host paths (`/srv/openclaw/*`, `/srv/certs`, `/srv/traefik`, `/srv/backups/volumes`), set OpenClaw ownership, generate self-signed certs, and write Traefik `dynamic.yml`.
+
+**On a clean server (no local clone yet) — pull and run directly from GitHub:**
 
 ```bash
-sudo DOMAIN=camp-fai CERT_BASENAME=camp-fai \
-  /path/to/AI_server_cachehive/scripts/bootstrap-server.sh
-```
-
-By default this also creates `/srv/openclaw/workspace/development` for git clones and dev work.
-
-Option 2 (no local clone on server): pull bootstrap script directly from GitHub:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/buckyinsfo/AI_server_cachehive/main/scripts/bootstrap-server.sh -o /tmp/bootstrap-server.sh
+curl -fsSL https://raw.githubusercontent.com/buckyinsfo/AI_server_cachehive/main/scripts/bootstrap-server.sh \
+  -o /tmp/bootstrap-server.sh
 chmod +x /tmp/bootstrap-server.sh
-sudo DOMAIN=camp-fai CERT_BASENAME=camp-fai /tmp/bootstrap-server.sh
+sudo DOMAIN=<domain> CERT_BASENAME=<domain> /tmp/bootstrap-server.sh
 ```
 
-With OpenClaw skill preinstall:
+**If you've already cloned the repo on the server:**
 
 ```bash
-sudo DOMAIN=camp-fai CERT_BASENAME=camp-fai \
+sudo DOMAIN=<domain> CERT_BASENAME=<domain> \
+  /path/to/AI_server_cachehive/scripts/bootstrap-server.sh
+```
+
+#### Preinstalling OpenClaw skills at bootstrap time
+
+Skills must be present on the host *before* the OpenClaw container starts for the first time. The `OPENCLAW_SKILLS` variable clones skills into `/srv/openclaw/config/skills/` — the same directory that gets bind-mounted into the container as `~/.openclaw/skills/`. Skills listed here are skipped if already installed.
+
+```bash
+sudo DOMAIN=<domain> CERT_BASENAME=<domain> \
   OPENCLAW_SKILLS="levineam/qmd-skill" \
-  /path/to/AI_server_cachehive/scripts/bootstrap-server.sh
+  /tmp/bootstrap-server.sh
 ```
 
-`OPENCLAW_SKILLS` expects comma-separated GitHub repos (`owner/repo`). The script clones each skill into `/srv/openclaw/config/skills/` (which maps to OpenClaw's `~/.openclaw/skills`) and skips ones already installed.
-
-If your domain is `cachehive.local`:
+`OPENCLAW_SKILLS` accepts a comma-separated list of `owner/repo` GitHub paths:
 
 ```bash
-sudo DOMAIN=cachehive.local CERT_BASENAME=cachehive.local \
-  /path/to/AI_server_cachehive/scripts/bootstrap-server.sh
+OPENCLAW_SKILLS="owner/repo-a,owner/repo-b"
 ```
 
-Optional flags:
+If you forgot to preinstall skills and the container is already running, clone them manually and restart:
 
-- `FORCE_CERTS=1` regenerate cert/key even if they already exist.
-- `FORCE_DYNAMIC=1` overwrite `/srv/traefik/dynamic.yml`.
-- `OPENCLAW_SKILLS="owner/repo-a,owner/repo-b"` preinstall skills into `/srv/openclaw/config/skills` before deploy.
-- `WORKSPACE_SUBDIR=development` choose workspace subfolder name under `/srv/openclaw/workspace/`.
+```bash
+sudo git clone --depth 1 https://github.com/owner/repo-name.git \
+  /srv/openclaw/config/skills/owner__repo-name
+sudo chown -R 1000:1000 /srv/openclaw/config/skills
+docker restart openclaw
+```
+
+#### Bootstrap flags reference
+
+| Variable | Default | Description |
+|---|---|---|
+| `DOMAIN` | `<your-hostname>` | Server hostname or local domain |
+| `CERT_BASENAME` | `$DOMAIN` | Filename prefix for cert/key (e.g. `<domain>.crt`) |
+| `CERT_DAYS` | `3650` | Certificate validity in days (~10 years) |
+| `OPENCLAW_UID` | `1000` | UID for OpenClaw bind-mount ownership |
+| `OPENCLAW_GID` | `1000` | GID for OpenClaw bind-mount ownership |
+| `WORKSPACE_SUBDIR` | `development` | Subfolder under `/srv/openclaw/workspace/` |
+| `OPENCLAW_SKILLS` | *(empty)* | Comma-separated `owner/repo` skills to preinstall |
+| `FORCE_CERTS` | `0` | Set to `1` to regenerate cert/key even if they exist |
+| `FORCE_DYNAMIC` | `0` | Set to `1` to overwrite `/srv/traefik/dynamic.yml` |
 
 ### Deploy stacks in Portainer (this order)
 
 ```
-infra
-postgres
-redis
-qdrant
-monitoring
-ollama
-openclaw
-quai-miner
+infra → postgres → redis → qdrant → monitoring → ollama → openclaw → openwebui → adminer → quai-miner
 ```
 
-Takes about **5 minutes total** once the host is ready.
+> Deploy `quai-miner` paused — activate manually during off-peak hours when AI inference isn't needed.
 
 ---
 
@@ -256,11 +290,13 @@ Creates the shared `proxy` network that all other stacks join. Routes traffic by
 
 | Service | URL |
 |---|---|
-| Traefik dashboard | `https://traefik.cachehive.local` |
-| Grafana | `https://grafana.cachehive.local` |
-| Prometheus | `https://prometheus.cachehive.local` |
-| Ollama API | `https://ollama.cachehive.local` |
-| OpenClaw | `https://openclaw.cachehive.local` |
+| Traefik dashboard | `https://traefik.<domain>` |
+| Grafana | `https://grafana.<domain>` |
+| Prometheus | `https://prometheus.<domain>` |
+| Ollama API | `https://ollama.<domain>` |
+| OpenClaw | `https://openclaw.<domain>` |
+| Open WebUI | `https://ai.<domain>` |
+| Adminer | `https://adminer.<domain>` |
 
 > **Note:** For the `.local` hostnames to work on your LAN, add entries to your DNS server or `/etc/hosts` on client machines pointing to the server's IP.
 
@@ -281,10 +317,10 @@ Create a self-signed cert on the server:
 ```bash
 sudo mkdir -p /srv/certs
 sudo openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
-  -keyout /srv/certs/camp-fai.key \
-  -out /srv/certs/camp-fai.crt \
-  -subj "/CN=camp-fai" \
-  -addext "subjectAltName=DNS:camp-fai,DNS:*.camp-fai"
+  -keyout /srv/certs/<domain>.key \
+  -out /srv/certs/<domain>.crt \
+  -subj "/CN=<domain>" \
+  -addext "subjectAltName=DNS:<domain>,DNS:*.<domain>"
 ```
 
 Then create the dynamic Traefik TLS config:
@@ -296,12 +332,12 @@ tls:
   stores:
     default:
       defaultCertificate:
-        certFile: /etc/certs/camp-fai.crt
-        keyFile: /etc/certs/camp-fai.key
+        certFile: /etc/certs/<domain>.crt
+        keyFile: /etc/certs/<domain>.key
 EOF
 ```
 
-If your domain is not `camp-fai` (for example `cachehive.local`), change both cert filenames and the `CN`/`subjectAltName` values to match your domain.
+Replace `<domain>` with your chosen routing domain. This must match the `DOMAIN` and `CERT_BASENAME` values you used with `bootstrap-server.sh`.
 
 Then redeploy the `infra` stack in Portainer (or restart Traefik) to apply changes.
 
@@ -322,7 +358,7 @@ The REST API is available at `qdrant:6333` on the `proxy` network. The gRPC API 
 After deploying, verify:
 
 ```bash
-curl http://camp-fai:6333/healthz
+curl http://<hostname>:6333/healthz
 ```
 
 ### monitoring
@@ -360,7 +396,7 @@ docker exec -it openclaw node dist/index.js setup
 
 If you want Exa web search available in OpenClaw skills, configure `EXA_API_KEY` and install an Exa skill (for example via `OPENCLAW_SKILLS="owner/repo"` in `scripts/bootstrap-server.sh`).
 
-OpenRouter API smoke test (from `camp-fai`):
+OpenRouter API smoke test (from `<hostname>`):
 
 ```bash
 export OPENROUTER_API_KEY='sk-or-v1-REPLACE_ME'
@@ -371,7 +407,7 @@ curl -sS https://openrouter.ai/api/v1/models \
 
 Expected: JSON response containing a `data` array of available models.
 
-Exa API smoke test (from `camp-fai`):
+Exa API smoke test (from `<hostname>`):
 
 ```bash
 export EXA_API_KEY='exa-REPLACE_ME'
@@ -387,7 +423,7 @@ Expected: JSON response with `results` and non-zero `searchTime`.
 
 OpenClaw auth token is stored on the host at `/srv/openclaw/config/openclaw.json` and is **not** managed by GitOps.
 
-On `camp-fai`:
+On `<hostname>`:
 
 ```bash
 # 1) Backup current config
@@ -408,8 +444,8 @@ docker exec openclaw sh -lc "grep -nE '\"auth\"|\"token\"' /home/node/.openclaw/
 Usability check (from any browser on LAN):
 
 1. Open a private window with:
-   - `https://openclaw.camp-fai/?gatewayUrl=wss://openclaw.camp-fai&token=<NEW_TOKEN>`
-2. If UI shows `pairing required`, approve the pending device on `camp-fai`:
+   - `https://openclaw.<domain>/?gatewayUrl=wss://openclaw.<domain>&token=<NEW_TOKEN>`
+2. If UI shows `pairing required`, approve the pending device on `<hostname>`:
 
 ```bash
 docker exec -it openclaw openclaw devices list
@@ -427,9 +463,40 @@ To verify loaded skills from inside the container:
 docker exec -it openclaw openclaw skills list
 ```
 
+### openwebui
+
+Browser-based chat UI for Ollama. Provides a clean, ChatGPT-style interface for running models locally. Connects to Ollama at `http://ollama:11434` (hardcoded in compose — no env var needed beyond `DOMAIN`).
+
+After deploying, open `https://ai.<DOMAIN>` and create an admin account on the first-run screen.
+
+### adminer
+
+Lightweight web-based database admin UI. Works with PostgreSQL, MySQL, SQLite, and others — same concept as Mongo Express but for SQL databases. Pre-configured to connect to the `postgres` container.
+
+Access at `https://adminer.<DOMAIN>`. The Traefik basic-auth middleware requires an `ADMINER_BASICAUTH_USERS` env var in Portainer.
+
+To generate the password hash:
+
+```bash
+# Install apache utils if needed
+sudo dnf install -y httpd-tools
+
+# Generate hash (you'll be prompted for a password)
+htpasswd -nb admin yourpassword
+# Output example: admin:$apr1$xyz...
+```
+
+When entering in Portainer, escape every `$` as `$$`.
+
+> **Security note:** Adminer exposes full database access. Keep this behind the Traefik basic-auth middleware and never expose port 8080 directly.
+
 ### quai-miner
 
 Rigel GPU miner for Quai (KawPow). Set `ALGO`, `POOL`, `WALLET`, and `WORKER` in Portainer environment variables. See `stacks/quai-miner/.env.example` for defaults.
+
+New to Quai? See [`docs/QUAI_WALLET_SETUP.md`](docs/QUAI_WALLET_SETUP.md) for a step-by-step guide to creating a Pelagus wallet and getting your mining address.
+
+> ⚠️ **Deploy paused.** This stack competes with Ollama for VRAM. Deploy via Portainer but leave it in a stopped state. Start manually during off-peak hours when AI inference isn't needed.
 
 ```bash
 docker logs rigel --tail 100
@@ -500,6 +567,8 @@ stacks/
     grafana/provisioning/        # Auto-provision datasources
   ollama/compose.yml             # Local LLM inference
   openclaw/compose.yml           # AI assistant
+  openwebui/compose.yml          # Browser chat UI for Ollama
+  adminer/compose.yml            # Web DB admin (Postgres + others)
   quai-miner/compose.yml         # GPU miner
 images/
   openclaw/Dockerfile            # Custom OpenClaw image (bun + qmd preinstalled)

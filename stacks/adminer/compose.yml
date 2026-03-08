@@ -1,0 +1,23 @@
+services:
+  adminer:
+    image: adminer:latest
+    container_name: adminer
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    networks:
+      - proxy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.adminer.rule: "Host(`adminer.${DOMAIN}`)"
+      traefik.http.routers.adminer.entrypoints: "websecure"
+      traefik.http.routers.adminer.tls: "true"
+      traefik.http.routers.adminer.middlewares: "adminer-auth"
+      traefik.http.services.adminer.loadbalancer.server.port: "8080"
+      # Basic auth — generate with: htpasswd -nb admin yourpassword
+      # Then set ADMINER_BASICAUTH_USERS in Portainer env vars
+      traefik.http.middlewares.adminer-auth.basicauth.users: "${ADMINER_BASICAUTH_USERS}"
+
+networks:
+  proxy:
+    external: true
