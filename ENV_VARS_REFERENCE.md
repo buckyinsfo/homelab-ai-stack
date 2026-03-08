@@ -109,8 +109,11 @@ No environment variables required.
 | Variable | Required | Example / Default | Description |
 |---|---|---|---|
 | `DOMAIN` | ✅ Yes | `<domain>` | Used in the Traefik routing rule (`ai.${DOMAIN}`). |
+| `POSTGRES_USER` | ✅ Yes | `<db-user>` | Must match the value set in the `postgres` stack. |
+| `POSTGRES_PASSWORD` | ✅ Yes | *(strong secret)* | Must match the value set in the `postgres` stack. |
+| `POSTGRES_DB` | ✅ Yes | `<db-name>` | Must match the value set in the `postgres` stack. |
 
-> Connects to Ollama at `http://ollama:11434` (hardcoded in compose). After deploying, open `https://ai.<DOMAIN>` and create an admin account on the first-run screen.
+> Connects to Ollama at `http://ollama:11434` and Postgres at `postgres:5432` (both hardcoded in compose). After deploying, open `https://ai.<DOMAIN>` and create an admin account on the first-run screen.
 
 ---
 
@@ -119,14 +122,22 @@ No environment variables required.
 | Variable | Required | Example / Default | Description |
 |---|---|---|---|
 | `DOMAIN` | ✅ Yes | `<domain>` | Used in the Traefik routing rule (`adminer.${DOMAIN}`). |
-| `ADMINER_BASICAUTH_USERS` | ✅ Yes | `admin:$$apr1$$…` | Traefik basic-auth credentials. Generate with `htpasswd -nb admin yourpassword`. **Escape every `$` as `$$` when entering in Portainer.** |
+| `ADMINER_BASICAUTH_USERS` | ✅ Yes | `admin:$$apr1$$…` | Traefik basic-auth credentials (browser login prompt). See note below. |
 
-> Generate the password hash on the server:
+> **Generating the hash** (no extra packages needed):
 > ```bash
-> sudo dnf install -y httpd-tools
-> htpasswd -nb admin yourpassword
+> openssl passwd -apr1 yourpassword
 > ```
-> Copy the output and double every `$` before pasting into Portainer.
+> Example output: `$apr1$OKylGb66$DfmJfv9OK3IuyzrN04zr0.`
+>
+> **⚠️ Dollar-sign escaping required in Portainer:** Docker Compose treats `$` as a variable interpolation character. Every `$` in the hash must be entered as `$$` in Portainer's environment variable UI — even though it looks like a plain text field.
+>
+> If your hash is `$apr1$OKylGb66$DfmJfv9OK3IuyzrN04zr0.`, enter this in Portainer:
+> ```
+> admin:$$apr1$$OKylGb66$$DfmJfv9OK3IuyzrN04zr0.
+> ```
+>
+> **Two-layer auth:** The browser popup is Traefik basic auth (uses `ADMINER_BASICAUTH_USERS`). The Adminer login form that follows is the Postgres credential layer (uses `POSTGRES_USER` / `POSTGRES_PASSWORD`).
 
 ---
 
@@ -179,7 +190,7 @@ DOMAIN=
 
 # === adminer ===
 DOMAIN=
-ADMINER_BASICAUTH_USERS=
+ADMINER_BASICAUTH_USERS=   ← remember: escape every $ as $$
 
 # === quai-miner ===
 ALGO=kawpow
@@ -200,6 +211,6 @@ openssl rand -hex 20
 openssl rand -hex 32
 
 # Adminer basic-auth hash
-htpasswd -nb admin yourpassword
-# Remember to escape every $ as $$ when pasting into Portainer
+# NOTE: enter the output in Portainer with every $ escaped as $$
+openssl passwd -apr1 yourpassword
 ```

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DOMAIN="${DOMAIN:-camp-fai}"
+DOMAIN="${DOMAIN:-myserver.local}"
 CERT_BASENAME="${CERT_BASENAME:-$DOMAIN}"
 CERT_DAYS="${CERT_DAYS:-3650}"
 OPENCLAW_UID="${OPENCLAW_UID:-1000}"

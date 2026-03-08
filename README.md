@@ -12,8 +12,9 @@ Two placeholders are used throughout this document. **Do a find-and-replace in y
 
 | Placeholder | What to replace it with | Example |
 |---|---|---|
-| `<hostname>` | Your server's hostname — used for direct SSH/port access | `camp-fai` |
+| `<hostname>` | Your server's hostname — used for direct SSH/port access | `myserver` |
 | `<domain>` | Your Traefik routing domain — used in DNS, URLs, and certs | `myserver.local` |
+| `<server-ip>` | Your server's LAN IP address | `192.168.1.100` |
 
 These can be the same value if you're routing by hostname rather than a separate local domain.
 
@@ -298,7 +299,7 @@ Creates the shared `proxy` network that all other stacks join. Routes traffic by
 | Open WebUI | `https://ai.<domain>` |
 | Adminer | `https://adminer.<domain>` |
 
-> **Note:** For the `.local` hostnames to work on your LAN, add entries to your DNS server or `/etc/hosts` on client machines pointing to the server's IP.
+> **Note:** For the `.local` hostnames to work on your LAN, see [Local DNS Setup](#local-dns-setup) below.
 
 #### Traefik default TLS certificate (host file)
 
@@ -539,6 +540,45 @@ Key volumes to back up: `grafana-data`, `prometheus-data`, `postgres-data`, `qdr
 ### Automate
 
 Run nightly via systemd timer or cron, and sync `/srv/backups` to NAS or cloud storage.
+
+---
+
+## Local DNS Setup
+
+Traefik routes traffic by hostname (e.g. `traefik.<domain>`, `grafana.<domain>`). For these to resolve on your LAN, every client machine that needs access must know the server's IP for those hostnames. You have two options:
+
+### Option A — /etc/hosts (single machine)
+
+Add one line per service to `/etc/hosts` on each client machine. On macOS/Linux:
+
+```bash
+sudo tee -a /etc/hosts <<EOF
+<server-ip>  traefik.<domain>
+<server-ip>  grafana.<domain>
+<server-ip>  prometheus.<domain>
+<server-ip>  ollama.<domain>
+<server-ip>  openclaw.<domain>
+<server-ip>  ai.<domain>
+<server-ip>  adminer.<domain>
+<server-ip>  qdrant.<domain>
+EOF
+```
+
+Replace `<server-ip>` with your server's LAN IP and `<domain>` with your chosen domain (e.g. `myserver.local`).
+
+On Windows, edit `C:\Windows\System32\drivers\etc\hosts` as Administrator with the same entries.
+
+### Option B — Router DNS (whole network)
+
+If your router supports custom DNS entries (most do under "Local DNS", "DNS Rewrites", or "Custom Hostnames"), add a wildcard or individual entries pointing `*.<domain>` (or each subdomain) to your server's IP. This means every device on your network resolves the hostnames automatically with no per-machine config.
+
+Common router admin interfaces that support this:
+- **pfSense / OPNsense** — DNS Resolver → Host Overrides, or use a wildcard entry
+- **OpenWrt** — Network → DHCP and DNS → Hostnames
+- **Unifi** — Network → DNS → Local DNS Records
+- **Pi-hole** — Local DNS → DNS Records (add one entry per subdomain)
+
+A single wildcard A record for `*.<domain>` pointing to `<server-ip>` is the cleanest solution — any new stack you deploy is instantly resolvable without adding new entries.
 
 ---
 

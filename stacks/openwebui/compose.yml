@@ -6,6 +6,7 @@ services:
 
     environment:
       OLLAMA_BASE_URL: http://ollama:11434
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
 
     volumes:
       - openwebui-data:/app/backend/data

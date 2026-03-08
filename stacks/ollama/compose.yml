@@ -16,16 +16,13 @@ services:
       OLLAMA_HOST: "0.0.0.0"
       OLLAMA_KEEP_ALIVE: "10m"
     volumes:
-      - ollama-data:/root/.ollama
+      - /home/ollama-data:/root/.ollama
     networks:
       - proxy
     labels:
       traefik.enable: "true"
       traefik.http.routers.ollama.rule: "Host(`ollama.${DOMAIN}`)"
       traefik.http.services.ollama.loadbalancer.server.port: "11434"
-
-volumes:
-  ollama-data:
 
 networks:
   proxy:
