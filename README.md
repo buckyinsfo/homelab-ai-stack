@@ -4,6 +4,10 @@ Self-hosted AI + GPU mining server on Rocky Linux — fully reproducible from ba
 
 This repo is the single source of truth. Every stack is a Docker Compose file deployed directly from GitHub. Rebuilding from scratch takes roughly 20–30 minutes (most of that is image pulls and the custom image builds).
 
+> **NVIDIA GPU?** This is the AMD ROCm branch. See [`main`](https://github.com/buckyinsfo/AI_server_cachehive/tree/main) for the NVIDIA CUDA version.
+
+> **AMD Radeon GPU?** See the [`amd-rocm`](https://github.com/buckyinsfo/AI_server_cachehive/tree/amd-rocm) branch for an equivalent setup using ROCm instead of NVIDIA CUDA.
+
 ---
 
 ## Before You Begin — Placeholders
