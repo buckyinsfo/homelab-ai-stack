@@ -275,9 +275,7 @@ In Portainer: **Stacks → Add stack → Repository**
 
 - **Repo URL:** `https://github.com/buckyinsfo/homelab-ai-stack.git`
 - **Reference:** `refs/heads/main`
-- **Auth:** ON
-- **Username:** `buckyinsfo`
-- **Password:** `<GITHUB_PAT>`
+- **Auth:** OFF (repo is public)
 
 Then deploy each stack using the compose paths from the table above. Set environment variables in Portainer for each stack — never commit real `.env` files.
 
@@ -498,17 +496,6 @@ Rigel GPU miner for Quai (KawPow). Set `ALGO`, `POOL`, `WALLET`, and `WORKER` in
 New to Quai? See [`docs/QUAI_WALLET_SETUP.md`](docs/QUAI_WALLET_SETUP.md) for a step-by-step guide to creating a Pelagus wallet and getting your mining address.
 
 > ⚠️ **Deploy paused.** This stack competes with Ollama for VRAM. Deploy via Portainer but leave it in a stopped state. Start manually during off-peak hours when AI inference isn't needed.
-
-#### First-time image build (required before deploying)
-
-Portainer GitOps runs `docker compose pull` before deploying. Because `local/rigel` is a locally-built image and not on any registry, the pull will fail unless the image already exists on the host. Build it once on `<hostname>` before the first deploy:
-
-```bash
-git clone git@github.com:buckyinsfo/homelab-ai-stack.git ~/homelab-ai-stack
-docker build -t local/rigel ~/homelab-ai-stack/images/rigel
-```
-
-Re-run the `docker build` command any time you update `RIGEL_VERSION` in the Dockerfile.
 
 ```bash
 docker logs rigel --tail 100

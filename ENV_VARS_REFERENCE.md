@@ -92,6 +92,7 @@ No environment variables required.
 | `OPENAI_API_KEY` | ⚠️ Optional | `sk-…` | API key for OpenAI models. |
 | `OPENROUTER_API_KEY` | ⚠️ Optional | `sk-or-v1-…` | API key for OpenRouter (access to many models via one key). |
 | `EXA_API_KEY` | ⚠️ Optional | `exa-…` | API key for Exa web search. Required if using Exa-based skills. |
+| `GEMINI_API_KEY` | ⚠️ Optional | `AIza…` | Google Gemini API key. Required for the nano-banana-pro image generation skill (Gemini 3 Pro Image). Get one from [Google AI Studio](https://aistudio.google.com). |
 
 > `OLLAMA_BASE_URL` is hardcoded in the compose file as `http://ollama:11434` — no env var needed.
 >
@@ -181,6 +182,7 @@ ANTHROPIC_API_KEY=
 OPENAI_API_KEY=
 OPENROUTER_API_KEY=
 EXA_API_KEY=
+GEMINI_API_KEY=
 
 # === openwebui ===
 DOMAIN=

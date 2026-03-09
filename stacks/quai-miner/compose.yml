@@ -3,6 +3,7 @@ services:
     build:
       context: ../../images/rigel
     image: local/rigel
+    pull_policy: build
     container_name: rigel
     restart: unless-stopped
     deploy:

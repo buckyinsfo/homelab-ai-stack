@@ -16,7 +16,7 @@ services:
       OLLAMA_HOST: "0.0.0.0"
       OLLAMA_KEEP_ALIVE: "10m"
     volumes:
-      - /home/ollama-data:/root/.ollama
+      - /home/docker-data/ollama:/root/.ollama
     networks:
       - proxy
     labels:
