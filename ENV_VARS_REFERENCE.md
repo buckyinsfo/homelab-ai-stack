@@ -1,4 +1,4 @@
-# CacheHive — Environment Variables Reference
+# Homelab AI Stack — Environment Variables Reference
 
 Use this document to prepare all secrets and configuration values **before** deploying stacks in Portainer. Enter these as environment variables in the Portainer stack editor — never commit them to git.
 
