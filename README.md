@@ -8,7 +8,7 @@ This repo is the single source of truth. Every stack is a Docker Compose file de
 
 ## Before You Begin — Placeholders
 
-Two placeholders are used throughout this document. **Do a find-and-replace in your notes or editor before following the steps.**
+Three placeholders are used throughout this document. **Do a find-and-replace in your notes or editor before following the steps.**
 
 | Placeholder | What to replace it with | Example |
 |---|---|---|
