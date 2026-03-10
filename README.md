@@ -55,51 +55,6 @@ These can be the same value if you're routing by hostname rather than a separate
 
 ---
 
-## Deploy Order Details
-
-### Host filesystem bootstrap (before Portainer stack deploys)
-
-Run this once on `<hostname>` to create required host paths (`/srv/openclaw/*`, `/srv/certs`, `/srv/traefik`, `/srv/backups/volumes`), set OpenClaw ownership, generate self-signed certs, and write Traefik `dynamic.yml`.
-
-**On a clean server (no local clone yet) — pull and run directly from GitHub:**
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/buckyinsfo/homelab-ai-stack/main/scripts/bootstrap-server.sh \
-  -o /tmp/bootstrap-server.sh
-chmod +x /tmp/bootstrap-server.sh
-sudo DOMAIN=<domain> CERT_BASENAME=<domain> /tmp/bootstrap-server.sh
-```
-
-**If you've already cloned the repo on the server:**
-
-```bash
-sudo DOMAIN=<domain> CERT_BASENAME=<domain> \
-  /path/to/homelab-ai-stack/scripts/bootstrap-server.sh
-```
-
-#### Bootstrap flags reference
-
-| Variable | Default | Description |
-|---|---|---|
-| `DOMAIN` | `<your-hostname>` | Server hostname or local domain |
-| `CERT_BASENAME` | `$DOMAIN` | Filename prefix for cert/key (e.g. `<domain>.crt`) |
-| `CERT_DAYS` | `3650` | Certificate validity in days (~10 years) |
-| `OPENCLAW_UID` | `1000` | UID for OpenClaw bind-mount ownership |
-| `OPENCLAW_GID` | `1000` | GID for OpenClaw bind-mount ownership |
-| `WORKSPACE_SUBDIR` | `development` | Subfolder under `/srv/openclaw/workspace/` |
-| `FORCE_CERTS` | `0` | Set to `1` to regenerate cert/key even if they exist |
-| `FORCE_DYNAMIC` | `0` | Set to `1` to overwrite `/srv/traefik/dynamic.yml` |
-
-### Deploy stacks in Portainer (this order)
-
-```
-infra → postgres → redis → qdrant → monitoring → ollama → openclaw → openwebui → adminer → quai-miner
-```
-
-> Deploy `quai-miner` paused — activate manually during off-peak hours when AI inference isn't needed.
-
----
-
 ## 1) Base OS Prep
 
 ```bash
@@ -144,26 +99,55 @@ nvidia-smi
 
 ## 3) Install Docker, NVIDIA Container Toolkit, and Portainer
 
-Run the install script as root. It handles everything: Docker CE, the NVIDIA Container Toolkit, GPU passthrough verification, and Portainer CE.
+Run the install script directly from GitHub as root. It handles everything: Docker CE, the NVIDIA Container Toolkit, GPU passthrough verification, and Portainer CE.
 
 ```bash
-sudo ./scripts/install_docker_portainer.sh
+curl -fsSL https://raw.githubusercontent.com/buckyinsfo/homelab-ai-stack/main/scripts/install_docker_portainer.sh \
+  -o /tmp/install_docker_portainer.sh
+chmod +x /tmp/install_docker_portainer.sh
+sudo /tmp/install_docker_portainer.sh
 ```
 
 After the script completes, log out and back in (or run `newgrp docker`) for the docker group to take effect, then open Portainer at `https://<hostname>:9443`.
 
 ---
 
-## 4) GPU Tuning (Host-Level)
+## 4) Bootstrap Host Filesystem
 
-### 4.1 Set power limit and persistence
+Run this once to create required host paths (`/srv/openclaw/*`, `/srv/certs`, `/srv/traefik`, `/srv/backups/volumes`), set OpenClaw ownership, generate self-signed certs, and write Traefik `dynamic.yml`.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/buckyinsfo/homelab-ai-stack/main/scripts/bootstrap-server.sh \
+  -o /tmp/bootstrap-server.sh
+chmod +x /tmp/bootstrap-server.sh
+sudo DOMAIN=<domain> CERT_BASENAME=<domain> /tmp/bootstrap-server.sh
+```
+
+#### Bootstrap flags reference
+
+| Variable | Default | Description |
+|---|---|---|
+| `DOMAIN` | `<your-hostname>` | Server hostname or local domain |
+| `CERT_BASENAME` | `$DOMAIN` | Filename prefix for cert/key (e.g. `<domain>.crt`) |
+| `CERT_DAYS` | `3650` | Certificate validity in days (~10 years) |
+| `OPENCLAW_UID` | `1000` | UID for OpenClaw bind-mount ownership |
+| `OPENCLAW_GID` | `1000` | GID for OpenClaw bind-mount ownership |
+| `WORKSPACE_SUBDIR` | `development` | Subfolder under `/srv/openclaw/workspace/` |
+| `FORCE_CERTS` | `0` | Set to `1` to regenerate cert/key even if they exist |
+| `FORCE_DYNAMIC` | `0` | Set to `1` to overwrite `/srv/traefik/dynamic.yml` |
+
+---
+
+## 5) GPU Tuning (Host-Level)
+
+### 5.1 Set power limit and persistence
 
 ```bash
 sudo nvidia-smi -pm 1
 sudo nvidia-smi -pl 140
 ```
 
-### 4.2 Make it survive reboots
+### 5.2 Make it survive reboots
 
 ```bash
 sudo tee /etc/systemd/system/gpu-tune.service >/dev/null <<'EOF'
@@ -187,7 +171,7 @@ sudo systemctl enable --now gpu-tune.service
 
 ---
 
-## 5) Add This Repo to Portainer (GitOps)
+## 6) Add This Repo to Portainer (GitOps)
 
 Use a GitHub Personal Access Token (PAT) as the password.
 
@@ -201,7 +185,17 @@ Then deploy each stack using the compose paths from the table above. Set environ
 
 ---
 
-## 6) Stack Details
+### Deploy stacks in Portainer (this order)
+
+```
+infra → postgres → redis → qdrant → monitoring → ollama → openclaw → openwebui → adminer → quai-miner
+```
+
+> Deploy `quai-miner` paused — activate manually during off-peak hours when AI inference isn't needed.
+
+---
+
+## 7) Stack Details
 
 ### infra (Traefik)
 
@@ -437,7 +431,7 @@ docker logs rigel --tail 100
 
 ---
 
-## 7) Secrets Strategy
+## 8) Secrets Strategy
 
 **Never commit `.env` files.** Set environment variables directly in Portainer's stack editor.
 
@@ -445,7 +439,7 @@ Each stack includes a `.env.example` showing which variables are required.
 
 ---
 
-## 8) GPU Sharing Note
+## 9) GPU Sharing Note
 
 The RTX 3070 has 8 GB VRAM. Running Ollama and the Quai miner simultaneously will compete for GPU memory. Options:
 
@@ -455,7 +449,7 @@ The RTX 3070 has 8 GB VRAM. Running Ollama and the Quai miner simultaneously wil
 
 ---
 
-## 9) Backups
+## 10) Backups
 
 ### One-liner volume backup
 
