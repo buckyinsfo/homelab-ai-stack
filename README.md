@@ -1,8 +1,10 @@
 # Homelab AI Stack
 
-Self-hosted AI + GPU mining server on Rocky Linux — fully reproducible from bare metal using **Portainer GitOps**.
+Self-hosted AI + GPU mining server on Debian 12 (Bookworm) — fully reproducible from bare metal using **Portainer GitOps**.
 
 This repo is the single source of truth. Every stack is a Docker Compose file deployed directly from GitHub. Rebuilding from scratch takes roughly 20–30 minutes (most of that is image pulls and the custom image builds).
+
+> **Migrated from Rocky Linux 10.1.** Rocky 10 had unresolvable NVIDIA driver dependency issues (`egl-gbm`, `egl-wayland`, `egl-x11` not packaged) and missing wireless packages on minimal installs. See [`docs/ROCKY10_WIFI_SETUP.md`](docs/ROCKY10_WIFI_SETUP.md) for the Wi-Fi saga.
 
 ---
 
@@ -40,7 +42,7 @@ These can be the same value if you're routing by hostname rather than a separate
 ## Install Order at a Glance
 
 ```
-1.  Rocky Linux OS install
+1.  Debian 12 OS install
 2.  NVIDIA driver + GPU tuning    ← scripts/install-nvidia-drivers.sh
 3.  Docker + NVIDIA Container
     Toolkit + Portainer           ← scripts/install_docker_portainer.sh
@@ -57,8 +59,12 @@ These can be the same value if you're routing by hostname rather than a separate
 
 ## 1) Base OS Prep
 
+Install Debian 12 using the **non-free firmware** ISO to ensure Wi-Fi and GPU hardware are detected. During install, select "SSH server" and "standard system utilities" — no desktop environment needed.
+
+After first boot:
+
 ```bash
-sudo dnf upgrade -y
+sudo apt update && sudo apt upgrade -y
 sudo reboot
 ```
 
@@ -68,24 +74,33 @@ After reboot, verify the kernel:
 uname -r
 ```
 
+Install essential tools:
+
+```bash
+sudo apt install -y curl wget git sudo apt-transport-https ca-certificates gnupg lsb-release
+```
+
 ---
 
 ## 2) Install NVIDIA Driver
 
-### 2.1 Add NVIDIA repo
+### 2.1 Enable non-free repos and install headers
 
 ```bash
-sudo dnf -y install dnf-plugins-core
-sudo dnf config-manager --add-repo \
-  http://developer.download.nvidia.com/compute/cuda/repos/rhel10/$(uname -m)/cuda-rhel10.repo
+sudo apt install -y linux-headers-$(uname -r) build-essential
+```
 
-sudo dnf clean expire-cache
+If your `/etc/apt/sources.list` doesn't already include `non-free` and `non-free-firmware`, add them:
+
+```bash
+sudo sed -i 's/bookworm main/bookworm main contrib non-free non-free-firmware/' /etc/apt/sources.list
+sudo apt update
 ```
 
 ### 2.2 Install driver
 
 ```bash
-sudo dnf -y install nvidia-driver
+sudo apt install -y nvidia-driver firmware-misc-nonfree
 sudo reboot
 ```
 
@@ -94,6 +109,8 @@ sudo reboot
 ```bash
 nvidia-smi
 ```
+
+> **Note:** Debian 12 ships driver 535.x by default. For newer drivers, you can use NVIDIA's official Debian repo or the `bookworm-backports` repo. The 535.x driver works well with the RTX 3070.
 
 ---
 
@@ -406,7 +423,7 @@ To generate the password hash:
 
 ```bash
 # Install apache utils if needed
-sudo dnf install -y httpd-tools
+sudo apt install -y apache2-utils
 
 # Generate hash (you'll be prompted for a password)
 htpasswd -nb admin yourpassword
@@ -516,7 +533,7 @@ A single wildcard A record for `*.<domain>` pointing to `<server-ip>` is the cle
 - **Ollama OOM** — pull a smaller model or stop the miner first.
 - **Traefik routes not working** — make sure the service has `traefik.enable: "true"` label and is on the `proxy` network.
 - **Mining performance drops** — verify `nvidia-smi` power limit is still applied and persistence mode is on.
-- **Wi-Fi not working after minimal install** — see [`docs/ROCKY10_WIFI_SETUP.md`](docs/ROCKY10_WIFI_SETUP.md) for the full fix (missing `wireless-regdb` + `NetworkManager-wifi` packages).
+- **Wi-Fi not working (Rocky Linux)** — see [`docs/ROCKY10_WIFI_SETUP.md`](docs/ROCKY10_WIFI_SETUP.md) for the full fix (missing `wireless-regdb` + `NetworkManager-wifi` packages). This issue prompted the migration to Debian.
 
 ---
 
@@ -548,5 +565,5 @@ docs/
   ENV_VARS_REFERENCE.md          # Environment variables per stack
   QUAI_WALLET_SETUP.md           # Pelagus wallet + mining address guide
   ROCKY10_WIFI_SETUP.md          # Wi-Fi fix for Rocky Linux 10.1 minimal install
-  OPENCLAW_AGENT_ROADMAP.md       # Agent development roadmap (bug reporter, health monitor, etc.)
+  OPENCLAW_AGENT_ROADMAP.md      # Agent development roadmap (bug reporter, health monitor, etc.)
 ```

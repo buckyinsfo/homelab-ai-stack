@@ -93,7 +93,26 @@ sudo nmcli device disconnect enp42s0
 ping -c 3 google.com  # should work over Wi-Fi now
 ```
 
-### 7. Reboot and confirm persistence
+### 7. Ensure auto-connect persists across reboots
+
+After connecting, verify you have a single saved profile and that autoconnect is enabled:
+
+```bash
+# List saved connections — look for duplicates
+nmcli connection show
+
+# If there are duplicate IRVINE_SPEC entries, delete the inactive one (no DEVICE assigned)
+sudo nmcli connection delete <inactive-uuid>
+
+# Enable autoconnect on the active profile
+sudo nmcli connection modify <active-uuid> autoconnect yes
+
+# Verify
+nmcli connection show <active-uuid> | grep autoconnect
+# Should show: connection.autoconnect: yes
+```
+
+### 8. Reboot and confirm persistence
 
 ```bash
 sudo reboot
@@ -102,7 +121,7 @@ nmcli device status
 ping -c 3 google.com
 ```
 
-If Wi-Fi doesn't auto-connect after reboot, re-run the connect command once to create a saved profile — NetworkManager will remember it for future boots.
+If Wi-Fi auto-connects and the ping works, you're done.
 
 ## Diagnostic Commands Reference
 

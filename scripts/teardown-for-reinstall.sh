@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Teardown script — resets camp-fai to post-NVIDIA, pre-Docker/Portainer state.
-# Safe to run on a Rocky Linux host where Docker may or may not be installed.
+# Safe to run on a Debian 12 host where Docker may or may not be installed.
 #
 # What this removes:
 #   - All running containers, images, volumes, networks
 #   - Docker CE packages + daemon
 #   - NVIDIA Container Toolkit packages
 #   - /var/lib/docker, /var/lib/containerd, /var/lib/grafana  (container runtime data)
-#   - /var/lib/containers, /var/lib/cni  (Podman/CNI leftovers from Rocky Linux)
+#   - /var/lib/containers, /var/lib/cni  (Podman/CNI leftovers from prior Rocky Linux setup)
 #   - /etc/docker  (daemon.json config dir)
 #   - /home/docker-data  (ollama models and other bind-mount data)
 #   - /srv  (Portainer GitOps stacks, certs, openclaw config, traefik)
@@ -73,25 +73,38 @@ systemctl disable docker.socket docker.service containerd || true
 
 # ── 3) Remove Docker + NVIDIA Container Toolkit packages ──────────────────────
 echo
-echo "==> Removing Docker CE packages"
-dnf remove -y \
-  docker-ce docker-ce-cli containerd.io \
-  docker-compose-plugin docker-buildx-plugin \
-  docker-ce-rootless-extras \
-  2>/dev/null || true
+echo "==> Removing Docker CE + NVIDIA toolkit packages"
+PACKAGES_TO_REMOVE=(
+  docker-ce docker-ce-cli containerd.io
+  docker-compose-plugin docker-buildx-plugin
+  docker-ce-rootless-extras
+  nvidia-container-toolkit
+  libnvidia-container-tools
+  libnvidia-container1
+)
 
-echo "==> Removing NVIDIA Container Toolkit packages"
-dnf remove -y \
-  nvidia-container-toolkit \
-  libnvidia-container-tools \
-  libnvidia-container1 \
-  2>/dev/null || true
+INSTALLED_PACKAGES=()
+for pkg in "${PACKAGES_TO_REMOVE[@]}"; do
+  if dpkg -s "${pkg}" &>/dev/null; then
+    INSTALLED_PACKAGES+=("${pkg}")
+  fi
+done
+
+if [[ "${#INSTALLED_PACKAGES[@]}" -gt 0 ]]; then
+  apt-get purge -y "${INSTALLED_PACKAGES[@]}" || true
+else
+  echo "==> No Docker/NVIDIA toolkit packages currently installed"
+fi
+
+echo "==> Running apt autoremove/clean"
+apt-get autoremove -y --purge || true
+apt-get clean
 
 echo "==> Removing repo files"
-rm -f /etc/yum.repos.d/docker-ce.repo
-rm -f /etc/yum.repos.d/nvidia-container-toolkit.repo
-
-dnf clean all
+rm -f /etc/apt/sources.list.d/docker.list
+rm -f /etc/apt/sources.list.d/nvidia-container-toolkit.list
+rm -f /etc/apt/keyrings/docker.asc
+rm -f /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
 
 # ── 4) Remove Docker data directories ─────────────────────────────────────────
 echo

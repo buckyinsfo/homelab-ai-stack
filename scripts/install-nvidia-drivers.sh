@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# NVIDIA Driver + CUDA Toolkit Installation Script for Rocky Linux 10
+# NVIDIA Driver + CUDA Toolkit Installation Script for Debian 12 (Bookworm)
 # Supports: Full desktop acceleration + CUDA compute
-# Tested on RTX 3070 with driver 570.xx and CUDA 12.x
+# Tested on RTX 3070 with driver 535.x and CUDA 12.x
 #
 # Usage: sudo ./install-nvidia-drivers.sh
 
@@ -14,35 +14,37 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 echo "==> Installing kernel headers and build essentials"
-dnf install -y \
-  kernel-devel-$(uname -r) \
-  kernel-headers-$(uname -r) \
-  cmake gcc gcc-c++ make
+apt-get update
+apt-get install -y \
+  linux-headers-$(uname -r) \
+  build-essential \
+  cmake gcc g++ make
 
-echo "==> Enabling CRB and EPEL"
-dnf config-manager --set-enabled crb
-dnf install -y epel-release
-
-echo "==> Adding NVIDIA CUDA repository"
-dnf config-manager --add-repo \
-  https://developer.download.nvidia.com/compute/cuda/repos/rhel10/x86_64/cuda-rhel10.repo
-
-dnf clean all
-dnf makecache
+echo "==> Enabling non-free repos (if not already enabled)"
+if ! grep -q 'non-free' /etc/apt/sources.list 2>/dev/null; then
+  sed -i 's/bookworm main/bookworm main contrib non-free non-free-firmware/' /etc/apt/sources.list
+  apt-get update
+fi
 
 echo "==> Blacklisting Nouveau driver"
 cat > /etc/modprobe.d/blacklist-nouveau.conf <<'EOF'
 blacklist nouveau
 options nouveau modeset=0
 EOF
-dracut --force
+update-initramfs -u
 
-echo "==> Installing NVIDIA driver + CUDA toolkit"
-dnf install -y \
+echo "==> Installing NVIDIA driver + firmware"
+apt-get install -y \
   nvidia-driver \
-  nvidia-driver-cuda \
-  kmod-nvidia-open-dkms \
-  cuda-toolkit
+  firmware-misc-nonfree
+
+echo "==> Installing CUDA toolkit from NVIDIA repo"
+# Add NVIDIA's CUDA repo for the full toolkit
+curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/cuda-keyring_1.1-1_all.deb \
+  -o /tmp/cuda-keyring.deb
+dpkg -i /tmp/cuda-keyring.deb
+apt-get update
+apt-get install -y cuda-toolkit
 
 echo "==> Setting up CUDA environment (system-wide)"
 cat > /etc/profile.d/cuda.sh <<'EOF'
