@@ -51,7 +51,7 @@ These can be the same value if you're routing by hostname rather than a separate
       → openclaw → openwebui → adminer → quai-miner (paused)
 ```
 
-> **Prepare env vars before you start deploying.** See [`ENV_VARS_REFERENCE.md`](ENV_VARS_REFERENCE.md) for a table of every variable per stack and a copy-paste cheatsheet.
+> **Prepare env vars before you start deploying.** See [`docs/ENV_VARS_REFERENCE.md`](docs/ENV_VARS_REFERENCE.md) for a table of every variable per stack and a copy-paste cheatsheet.
 
 ---
 
@@ -516,6 +516,7 @@ A single wildcard A record for `*.<domain>` pointing to `<server-ip>` is the cle
 - **Ollama OOM** — pull a smaller model or stop the miner first.
 - **Traefik routes not working** — make sure the service has `traefik.enable: "true"` label and is on the `proxy` network.
 - **Mining performance drops** — verify `nvidia-smi` power limit is still applied and persistence mode is on.
+- **Wi-Fi not working after minimal install** — see [`docs/ROCKY10_WIFI_SETUP.md`](docs/ROCKY10_WIFI_SETUP.md) for the full fix (missing `wireless-regdb` + `NetworkManager-wifi` packages).
 
 ---
 
@@ -543,4 +544,9 @@ scripts/
   bootstrap-server.sh            # Create /srv paths, certs, and Traefik dynamic.yml
   install-nvidia-drivers.sh      # NVIDIA driver install + GPU tuning
   install_docker_portainer.sh    # Docker CE + NVIDIA Container Toolkit + Portainer
+docs/
+  ENV_VARS_REFERENCE.md          # Environment variables per stack
+  QUAI_WALLET_SETUP.md           # Pelagus wallet + mining address guide
+  ROCKY10_WIFI_SETUP.md          # Wi-Fi fix for Rocky Linux 10.1 minimal install
+  OPENCLAW_AGENT_ROADMAP.md       # Agent development roadmap (bug reporter, health monitor, etc.)
 ```
