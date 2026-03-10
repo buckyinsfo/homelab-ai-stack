@@ -36,6 +36,7 @@ echo "==> Setting up Docker data directories on large filesystem (${DATA_DIR})"
 # /var/lib/docker/volumes so Docker volume mounts land on the large filesystem.
 DOCKER_VOLUMES="/var/lib/docker/volumes"
 mkdir -p "${DATA_DIR}"
+mkdir -p "${DOCKER_VOLUMES}"
 for service in ollama postgres redis qdrant openwebui; do
   target="${DATA_DIR}/${service}"
   link="${DOCKER_VOLUMES}/${service}-data"
