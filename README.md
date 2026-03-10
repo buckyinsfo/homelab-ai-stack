@@ -32,7 +32,7 @@ These can be the same value if you're routing by hostname rather than a separate
 | **ollama** | Local LLM inference on GPU | `stacks/ollama/compose.yml` | No |
 | **openclaw** | Self-hosted AI assistant (Ollama + Anthropic + OpenAI) | `stacks/openclaw/compose.yml` | No |
 | **openwebui** | Browser chat UI for Ollama | `stacks/openwebui/compose.yml` | No |
-| **adminer** | Web-based Postgres (and multi-DB) admin UI | `stacks/adminer/compose.yml` | No |
+| **adminer** | Web-based Postgres (and multi-DB) admin UI | `stacks/adminer/compose.yml` | Yes |
 | **quai-miner** | Rigel GPU miner (Quai / KawPow) | `stacks/quai-miner/compose.yml` | Yes |
 
 ---
@@ -41,14 +41,12 @@ These can be the same value if you're routing by hostname rather than a separate
 
 ```
 1.  Rocky Linux OS install
-2.  NVIDIA driver
-3.  Docker
-4.  NVIDIA Container Toolkit
-5.  GPU tuning (power limit, persistence)
-6.  Portainer
-7.  Run bootstrap-server.sh  ← creates /srv paths, certs, Traefik config
-8.  Add repo to Portainer GitOps
-9.  Deploy stacks in order:
+2.  NVIDIA driver + GPU tuning    ← scripts/install-nvidia-drivers.sh
+3.  Docker + NVIDIA Container
+    Toolkit + Portainer           ← scripts/install_docker_portainer.sh
+4.  Run bootstrap-server.sh       ← creates /srv paths, certs, Traefik config
+5.  Add repo to Portainer GitOps
+6.  Deploy stacks in order:
       infra → postgres → redis → qdrant → monitoring → ollama
       → openclaw → openwebui → adminer → quai-miner (paused)
 ```
@@ -79,31 +77,6 @@ sudo DOMAIN=<domain> CERT_BASENAME=<domain> \
   /path/to/homelab-ai-stack/scripts/bootstrap-server.sh
 ```
 
-#### Preinstalling OpenClaw skills at bootstrap time
-
-Skills must be present on the host *before* the OpenClaw container starts for the first time. The `OPENCLAW_SKILLS` variable clones skills into `/srv/openclaw/config/skills/` — the same directory that gets bind-mounted into the container as `~/.openclaw/skills/`. Skills listed here are skipped if already installed.
-
-```bash
-sudo DOMAIN=<domain> CERT_BASENAME=<domain> \
-  OPENCLAW_SKILLS="levineam/qmd-skill" \
-  /tmp/bootstrap-server.sh
-```
-
-`OPENCLAW_SKILLS` accepts a comma-separated list of `owner/repo` GitHub paths:
-
-```bash
-OPENCLAW_SKILLS="owner/repo-a,owner/repo-b"
-```
-
-If you forgot to preinstall skills and the container is already running, clone them manually and restart:
-
-```bash
-sudo git clone --depth 1 https://github.com/owner/repo-name.git \
-  /srv/openclaw/config/skills/owner__repo-name
-sudo chown -R 1000:1000 /srv/openclaw/config/skills
-docker restart openclaw
-```
-
 #### Bootstrap flags reference
 
 | Variable | Default | Description |
@@ -114,7 +87,6 @@ docker restart openclaw
 | `OPENCLAW_UID` | `1000` | UID for OpenClaw bind-mount ownership |
 | `OPENCLAW_GID` | `1000` | GID for OpenClaw bind-mount ownership |
 | `WORKSPACE_SUBDIR` | `development` | Subfolder under `/srv/openclaw/workspace/` |
-| `OPENCLAW_SKILLS` | *(empty)* | Comma-separated `owner/repo` skills to preinstall |
 | `FORCE_CERTS` | `0` | Set to `1` to regenerate cert/key even if they exist |
 | `FORCE_DYNAMIC` | `0` | Set to `1` to overwrite `/srv/traefik/dynamic.yml` |
 
@@ -170,62 +142,28 @@ nvidia-smi
 
 ---
 
-## 3) Install Docker
+## 3) Install Docker, NVIDIA Container Toolkit, and Portainer
+
+Run the install script as root. It handles everything: Docker CE, the NVIDIA Container Toolkit, GPU passthrough verification, and Portainer CE.
 
 ```bash
-sudo dnf -y install dnf-plugins-core
-sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-
-sudo dnf -y install docker-ce docker-ce-cli containerd.io
-sudo systemctl enable --now docker
-sudo usermod -aG docker $USER
-newgrp docker
+sudo ./scripts/install_docker_portainer.sh
 ```
 
-Verify:
-
-```bash
-docker version
-docker run --rm hello-world
-```
+After the script completes, log out and back in (or run `newgrp docker`) for the docker group to take effect, then open Portainer at `https://<hostname>:9443`.
 
 ---
 
-## 4) Install NVIDIA Container Toolkit
+## 4) GPU Tuning (Host-Level)
 
-```bash
-sudo dnf -y install curl
-curl -s -L https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo | \
-  sudo tee /etc/yum.repos.d/nvidia-container-toolkit.repo
-
-sudo dnf -y install nvidia-container-toolkit
-```
-
-Configure the Docker runtime:
-
-```bash
-sudo nvidia-ctk runtime configure --runtime=docker
-sudo systemctl restart docker
-```
-
-Verify GPU passthrough:
-
-```bash
-docker run --rm --gpus all nvidia/cuda:12.3.2-base-ubuntu22.04 nvidia-smi
-```
-
----
-
-## 5) GPU Tuning (Host-Level)
-
-### 5.1 Set power limit and persistence
+### 4.1 Set power limit and persistence
 
 ```bash
 sudo nvidia-smi -pm 1
 sudo nvidia-smi -pl 140
 ```
 
-### 5.2 Make it survive reboots
+### 4.2 Make it survive reboots
 
 ```bash
 sudo tee /etc/systemd/system/gpu-tune.service >/dev/null <<'EOF'
@@ -249,25 +187,7 @@ sudo systemctl enable --now gpu-tune.service
 
 ---
 
-## 6) Install Portainer
-
-```bash
-docker volume create portainer_data
-docker run -d \
-  --name portainer \
-  --restart=unless-stopped \
-  -p 9000:9000 \
-  -p 9443:9443 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v portainer_data:/data \
-  portainer/portainer-ce:latest
-```
-
-Open the Portainer UI at `https://<hostname>:9443`.
-
----
-
-## 7) Add This Repo to Portainer (GitOps)
+## 5) Add This Repo to Portainer (GitOps)
 
 Use a GitHub Personal Access Token (PAT) as the password.
 
@@ -281,7 +201,7 @@ Then deploy each stack using the compose paths from the table above. Set environ
 
 ---
 
-## 8) Stack Details
+## 6) Stack Details
 
 ### infra (Traefik)
 
@@ -383,7 +303,7 @@ The Ollama API is available to other containers on the `proxy` network at `http:
 
 ### openclaw
 
-Self-hosted AI assistant. Connects to Ollama for local models and to Anthropic/OpenAI/OpenRouter for cloud models. Set `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, and `EXA_API_KEY` in Portainer environment variables.
+Self-hosted AI assistant. Connects to Ollama for local models and to Anthropic/OpenAI/OpenRouter for cloud models. Set `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `EXA_API_KEY`, and `GEMINI_API_KEY` in Portainer environment variables.
 
 This stack builds a custom image from `images/openclaw/Dockerfile` so required skill runtime binaries (`bun` and `qmd`) are preinstalled at image build time.
 
@@ -393,7 +313,27 @@ After first deploy, run the setup wizard:
 docker exec -it openclaw node dist/index.js setup
 ```
 
-If you want Exa web search available in OpenClaw skills, configure `EXA_API_KEY` and install an Exa skill (for example via `OPENCLAW_SKILLS="owner/repo"` in `scripts/bootstrap-server.sh`).
+To preinstall skills before the container first starts, clone them into the bind-mount path:
+
+```bash
+sudo git clone --depth 1 https://github.com/owner/repo-name.git \
+  /srv/openclaw/config/skills/owner__repo-name
+sudo chown -R 1000:1000 /srv/openclaw/config/skills
+```
+
+If the container is already running, restart it after cloning:
+
+```bash
+docker restart openclaw
+```
+
+To verify loaded skills from inside the container:
+
+```bash
+docker exec -it openclaw openclaw skills list
+```
+
+If you want Exa web search available in OpenClaw skills, configure `EXA_API_KEY` and install an Exa skill as above.
 
 OpenRouter API smoke test (from `<hostname>`):
 
@@ -456,19 +396,13 @@ docker exec -it openclaw openclaw devices approve <REQUEST_ID>
 
 If the UI shows lockout (`too many failed authentication attempts`), wait 2-3 minutes or restart `openclaw` and retry once.
 
-To verify loaded skills from inside the container:
-
-```bash
-docker exec -it openclaw openclaw skills list
-```
-
 ### openwebui
 
 Browser-based chat UI for Ollama. Provides a clean, ChatGPT-style interface for running models locally. Connects to Ollama at `http://ollama:11434` (hardcoded in compose — no env var needed beyond `DOMAIN`).
 
 After deploying, open `https://ai.<DOMAIN>` and create an admin account on the first-run screen.
 
-### adminer
+### adminer *(optional)*
 
 Lightweight web-based database admin UI. Works with PostgreSQL, MySQL, SQLite, and others — same concept as Mongo Express but for SQL databases. Pre-configured to connect to the `postgres` container.
 
@@ -489,7 +423,7 @@ When entering in Portainer, escape every `$` as `$$`.
 
 > **Security note:** Adminer exposes full database access. Keep this behind the Traefik basic-auth middleware and never expose port 8080 directly.
 
-### quai-miner
+### quai-miner *(optional)*
 
 Rigel GPU miner for Quai (KawPow). Set `ALGO`, `POOL`, `WALLET`, and `WORKER` in Portainer environment variables. See `stacks/quai-miner/.env.example` for defaults.
 
@@ -503,7 +437,7 @@ docker logs rigel --tail 100
 
 ---
 
-## 9) Secrets Strategy
+## 7) Secrets Strategy
 
 **Never commit `.env` files.** Set environment variables directly in Portainer's stack editor.
 
@@ -511,7 +445,7 @@ Each stack includes a `.env.example` showing which variables are required.
 
 ---
 
-## 10) GPU Sharing Note
+## 8) GPU Sharing Note
 
 The RTX 3070 has 8 GB VRAM. Running Ollama and the Quai miner simultaneously will compete for GPU memory. Options:
 
@@ -521,7 +455,7 @@ The RTX 3070 has 8 GB VRAM. Running Ollama and the Quai miner simultaneously wil
 
 ---
 
-## 11) Backups
+## 9) Backups
 
 ### One-liner volume backup
 
@@ -613,4 +547,6 @@ images/
   rigel/Dockerfile               # Custom Rigel miner image
 scripts/
   bootstrap-server.sh            # Create /srv paths, certs, and Traefik dynamic.yml
+  install-nvidia-drivers.sh      # NVIDIA driver install + GPU tuning
+  install_docker_portainer.sh    # Docker CE + NVIDIA Container Toolkit + Portainer
 ```
