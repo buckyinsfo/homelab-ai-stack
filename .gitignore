@@ -20,3 +20,8 @@ Thumbs.db
 # Tarballs / build artifacts
 *.tar.gz
 *.tgz
+
+# Misc
+*.ok2delete
+*.claude
+*.codex
