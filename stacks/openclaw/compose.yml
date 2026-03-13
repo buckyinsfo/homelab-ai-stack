@@ -19,6 +19,7 @@ services:
     volumes:
       - /srv/openclaw/config:/home/node/.openclaw
       - /srv/openclaw/workspace:/home/node/.openclaw/workspace
+      - /srv/openclaw/logs:/tmp/openclaw
 
     networks:
       - proxy

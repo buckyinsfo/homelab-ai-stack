@@ -60,6 +60,7 @@ mkdir -p \
   "${OPENCLAW_ROOT}/config/skills" \
   "${OPENCLAW_ROOT}/workspace" \
   "${OPENCLAW_ROOT}/workspace/${WORKSPACE_SUBDIR}" \
+  "${OPENCLAW_ROOT}/logs" \
   "${CERT_DIR}" \
   "${TRAEFIK_DIR}" \
   "${BACKUP_DIR}"
