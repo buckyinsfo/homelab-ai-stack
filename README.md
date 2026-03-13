@@ -43,17 +43,14 @@ These can be the same value if you're routing by hostname rather than a separate
 
 ```
 1.  Debian 12 OS install
-2.  NVIDIA driver + GPU tuning    ← scripts/install-nvidia-drivers.sh
+2.  NVIDIA driver + CUDA + GPU tuning ← scripts/install-nvidia-drivers.sh
 3.  Docker + NVIDIA Container
-    Toolkit + Portainer           ← scripts/install_docker_portainer.sh
-4.  Run bootstrap-server.sh       ← creates /srv paths, certs, Traefik config
-5.  Add repo to Portainer GitOps
-6.  Deploy stacks in order:
-      infra → postgres → redis → qdrant → monitoring → ollama
-      → openclaw → openwebui → adminer → quai-miner (paused)
+    Toolkit + Portainer           ← scripts/install-docker-portainer.sh
+4.  Bootstrap host filesystem     ← scripts/bootstrap-server.sh
+5.  Deploy stacks via Portainer   ← repeat Add Stack flow once per stack (§6)
 ```
 
-> **Prepare env vars before you start deploying.** See [`docs/ENV_VARS_REFERENCE.md`](docs/ENV_VARS_REFERENCE.md) for a table of every variable per stack and a copy-paste cheatsheet.
+> **Prepare env vars before deploying.** Each stack needs its own env vars set in Portainer before clicking Deploy. See [`docs/ENV_VARS_REFERENCE.md`](docs/ENV_VARS_REFERENCE.md) for the full table.
 
 ---
 
@@ -84,33 +81,21 @@ sudo apt install -y curl wget git sudo apt-transport-https ca-certificates gnupg
 
 ## 2) Install NVIDIA Driver
 
-### 2.1 Enable non-free repos and install headers
+Run the install script directly from GitHub. It handles everything: kernel headers, non-free repo enablement, Nouveau blacklisting, the NVIDIA driver, the full CUDA toolkit, and CUDA environment variables.
 
 ```bash
-sudo apt install -y linux-headers-$(uname -r) build-essential
+curl -fsSL https://raw.githubusercontent.com/buckyinsfo/homelab-ai-stack/main/scripts/install-nvidia-drivers.sh \
+  -o /tmp/install-nvidia-drivers.sh
+chmod +x /tmp/install-nvidia-drivers.sh
+sudo /tmp/install-nvidia-drivers.sh
 ```
 
-If your `/etc/apt/sources.list` doesn't already include `non-free` and `non-free-firmware`, add them:
-
-```bash
-sudo sed -i 's/bookworm main/bookworm main contrib non-free non-free-firmware/' /etc/apt/sources.list
-sudo apt update
-```
-
-### 2.2 Install driver
-
-```bash
-sudo apt install -y nvidia-driver firmware-misc-nonfree
-sudo reboot
-```
-
-### 2.3 Verify
+The script will prompt to reboot at the end. After rebooting, verify:
 
 ```bash
 nvidia-smi
+nvcc --version
 ```
-
-> **Note:** Debian 12 ships driver 535.x by default. For newer drivers, you can use NVIDIA's official Debian repo or the `bookworm-backports` repo. The 535.x driver works well with the RTX 3070.
 
 ---
 
@@ -119,10 +104,10 @@ nvidia-smi
 Run the install script directly from GitHub as root. It handles everything: Docker CE, the NVIDIA Container Toolkit, GPU passthrough verification, and Portainer CE.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/buckyinsfo/homelab-ai-stack/main/scripts/install_docker_portainer.sh \
-  -o /tmp/install_docker_portainer.sh
-chmod +x /tmp/install_docker_portainer.sh
-sudo /tmp/install_docker_portainer.sh
+curl -fsSL https://raw.githubusercontent.com/buckyinsfo/homelab-ai-stack/main/scripts/install-docker-portainer.sh \
+  -o /tmp/install-docker-portainer.sh
+chmod +x /tmp/install-docker-portainer.sh
+sudo /tmp/install-docker-portainer.sh
 ```
 
 After the script completes, log out and back in (or run `newgrp docker`) for the docker group to take effect, then open Portainer at `https://<hostname>:9443`.
@@ -157,66 +142,73 @@ sudo DOMAIN=<domain> CERT_BASENAME=<domain> /tmp/bootstrap-server.sh
 
 ## 5) GPU Tuning (Host-Level)
 
-### 5.1 Set power limit and persistence
+Handled automatically by `install-nvidia-drivers.sh` — it creates and enables a `gpu-tune.service` systemd unit that applies persistence mode and a 140W power limit on every boot.
+
+To verify after rebooting:
 
 ```bash
-sudo nvidia-smi -pm 1
-sudo nvidia-smi -pl 140
+systemctl status gpu-tune.service
+nvidia-smi  # confirm Power Limit shows 140W
 ```
 
-### 5.2 Make it survive reboots
+To adjust the power limit for a different GPU:
 
 ```bash
-sudo tee /etc/systemd/system/gpu-tune.service >/dev/null <<'EOF'
-[Unit]
-Description=GPU tune (power limit + persistence)
-After=multi-user.target
-
-[Service]
-Type=oneshot
-ExecStart=/usr/bin/nvidia-smi -pm 1
-ExecStart=/usr/bin/nvidia-smi -pl 140
-RemainAfterExit=true
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
+sudo nvidia-smi -pl <watts>
+sudo sed -i 's/-pl 140/-pl <watts>/' /etc/systemd/system/gpu-tune.service
 sudo systemctl daemon-reload
-sudo systemctl enable --now gpu-tune.service
 ```
 
 ---
 
-## 6) Add This Repo to Portainer (GitOps)
+## 6) Deploy Stacks via Portainer GitOps
 
-Use a GitHub Personal Access Token (PAT) as the password.
+Each stack in this repo is deployed individually through Portainer. You'll repeat the same flow once per stack, in order. The repo is public so no authentication is needed.
 
-In Portainer: **Stacks → Add stack → Repository**
+### How to add a stack in Portainer
 
-- **Repo URL:** `https://github.com/buckyinsfo/homelab-ai-stack.git`
-- **Reference:** `refs/heads/main`
-- **Auth:** OFF (repo is public)
+For **each** stack, go to **Stacks → Add stack** and fill in:
 
-Then deploy each stack using the compose paths from the table above. Set environment variables in Portainer for each stack — never commit real `.env` files.
+| Field | Value |
+|---|---|
+| Name | The stack name (e.g. `infra`, `postgres`, etc.) |
+| Build method | **Repository** |
+| Repository URL | `https://github.com/buckyinsfo/homelab-ai-stack.git` |
+| Repository reference | `refs/heads/main` |
+| Compose path | The path from the table below (e.g. `stacks/infra/compose.yml`) |
+| Authentication | OFF (repo is public) |
+| GitOps updates | ON — enables **Pull and redeploy** when you push changes |
+
+Before clicking **Deploy**, scroll down to the **Environment variables** section and add the required vars for that stack. See [`docs/ENV_VARS_REFERENCE.md`](docs/ENV_VARS_REFERENCE.md) for a full table and copy-paste cheatsheet. **Never commit real `.env` files** — Portainer env vars are the secrets store.
+
+### Deploy in this order
+
+| # | Stack | Compose path | Notes |
+|---|---|---|---|
+| 1 | **infra** | `stacks/infra/compose.yml` | Must be first — creates the shared `proxy` network |
+| 2 | **postgres** | `stacks/postgres/compose.yml` | |
+| 3 | **redis** | `stacks/redis/compose.yml` | |
+| 4 | **qdrant** | `stacks/qdrant/compose.yml` | |
+| 5 | **monitoring** | `stacks/monitoring/compose.yml` | See post-deploy steps in §7 |
+| 6 | **ollama** | `stacks/ollama/compose.yml` | Pull models after deploy |
+| 7 | **openclaw** | `stacks/openclaw/compose.yml` | See post-deploy steps in §7 |
+| 8 | **openwebui** | `stacks/openwebui/compose.yml` | |
+| 9 | **adminer** *(optional)* | `stacks/adminer/compose.yml` | |
+| 10 | **quai-miner** *(optional)* | `stacks/quai-miner/compose.yml` | Deploy paused — start manually |
+
+> **infra must be deployed first.** Every other stack joins the `proxy` network that infra creates. Deploying any other stack before infra will fail.
 
 ---
 
-### Deploy stacks in Portainer (this order)
+## 7) Post-Deploy Steps per Stack
 
-```
-infra → postgres → redis → qdrant → monitoring → ollama → openclaw → openwebui → adminer → quai-miner
-```
-
-> Deploy `quai-miner` paused — activate manually during off-peak hours when AI inference isn't needed.
-
----
-
-## 7) Stack Details
+Most stacks are fully self-configuring once deployed. A few require post-deploy steps on the server or in the browser. Those are documented below — stacks with no entry here need nothing beyond deploying in Portainer.
 
 ### infra (Traefik)
 
-Creates the shared `proxy` network that all other stacks join. Routes traffic by hostname so you get clean URLs instead of port numbers.
+Creates the shared `proxy` network that all other stacks join. Routes traffic by hostname so you get clean URLs instead of port numbers. No post-deploy steps — certs and `dynamic.yml` are created by `bootstrap-server.sh` in step 4.
+
+Once deployed, all services are available at:
 
 | Service | URL |
 |---|---|
@@ -228,48 +220,7 @@ Creates the shared `proxy` network that all other stacks join. Routes traffic by
 | Open WebUI | `https://ai.<domain>` |
 | Adminer | `https://adminer.<domain>` |
 
-> **Note:** For the `.local` hostnames to work on your LAN, see [Local DNS Setup](#local-dns-setup) below.
-
-#### Traefik default TLS certificate (host file)
-
-The `infra` stack mounts a host file at `/srv/traefik/dynamic.yml` and loads it with:
-
-```yaml
---providers.file.filename=/etc/traefik/dynamic.yml
-```
-
-Versioned template: `stacks/infra/dynamic.example.yml`
-
-Recommended: use `scripts/bootstrap-server.sh` to create certs + `dynamic.yml` automatically.
-
-Create a self-signed cert on the server:
-
-```bash
-sudo mkdir -p /srv/certs
-sudo openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
-  -keyout /srv/certs/<domain>.key \
-  -out /srv/certs/<domain>.crt \
-  -subj "/CN=<domain>" \
-  -addext "subjectAltName=DNS:<domain>,DNS:*.<domain>"
-```
-
-Then create the dynamic Traefik TLS config:
-
-```bash
-sudo mkdir -p /srv/traefik
-sudo tee /srv/traefik/dynamic.yml > /dev/null <<'EOF'
-tls:
-  stores:
-    default:
-      defaultCertificate:
-        certFile: /etc/certs/<domain>.crt
-        keyFile: /etc/certs/<domain>.key
-EOF
-```
-
-Replace `<domain>` with your chosen routing domain. This must match the `DOMAIN` and `CERT_BASENAME` values you used with `bootstrap-server.sh`.
-
-Then redeploy the `infra` stack in Portainer (or restart Traefik) to apply changes.
+> For `.local` hostnames to resolve on your LAN, see [Local DNS Setup](#local-dns-setup) below.
 
 ### postgres
 
@@ -293,14 +244,9 @@ curl http://<hostname>:6333/healthz
 
 ### monitoring
 
-Full observability stack. Grafana auto-provisions Prometheus as a data source on first boot.
+Full observability stack. Grafana auto-provisions Prometheus as a datasource on first boot — no manual datasource setup needed.
 
-After deploying, import NVIDIA GPU dashboard in Grafana:
-1. Go to **Dashboards → Import**
-2. Enter dashboard ID **12239** (or grab a newer JSON from the [dcgm-exporter repo](https://github.com/NVIDIA/dcgm-exporter))
-3. Select the Prometheus data source
-
-For host metrics, import Node Exporter Full (dashboard ID **1860**).
+After deploying, import community dashboards and apply a one-time variable fix. See [`docs/MONITORING_SETUP.md`](docs/MONITORING_SETUP.md) for the full walkthrough.
 
 ### ollama
 
@@ -546,9 +492,7 @@ stacks/
   redis/compose.yml              # Redis 7
   qdrant/compose.yml             # Vector database (RAG)
   monitoring/
-    compose.yml                  # Prometheus + Grafana + exporters
-    prometheus.yml               # Scrape config
-    grafana/provisioning/        # Auto-provision datasources
+    compose.yml                  # Prometheus + Grafana + exporters (configs embedded inline)
   ollama/compose.yml             # Local LLM inference
   openclaw/compose.yml           # AI assistant
   openwebui/compose.yml          # Browser chat UI for Ollama
@@ -560,9 +504,10 @@ images/
 scripts/
   bootstrap-server.sh            # Create /srv paths, certs, and Traefik dynamic.yml
   install-nvidia-drivers.sh      # NVIDIA driver install + GPU tuning
-  install_docker_portainer.sh    # Docker CE + NVIDIA Container Toolkit + Portainer
+  install-docker-portainer.sh    # Docker CE + NVIDIA Container Toolkit + Portainer
 docs/
   ENV_VARS_REFERENCE.md          # Environment variables per stack
+  MONITORING_SETUP.md            # Grafana dashboard import + variable fix walkthrough
   QUAI_WALLET_SETUP.md           # Pelagus wallet + mining address guide
   ROCKY10_WIFI_SETUP.md          # Wi-Fi fix for Rocky Linux 10.1 minimal install
   OPENCLAW_AGENT_ROADMAP.md      # Agent development roadmap (bug reporter, health monitor, etc.)

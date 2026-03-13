@@ -53,11 +53,33 @@ export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 EOF
 chmod +x /etc/profile.d/cuda.sh
 
+echo "==> Setting up GPU tuning systemd service (power limit + persistence mode)"
+cat > /etc/systemd/system/gpu-tune.service <<'EOF'
+[Unit]
+Description=GPU tune (power limit + persistence mode)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/nvidia-smi -pm 1
+ExecStart=/usr/bin/nvidia-smi -pl 140
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable --now gpu-tune.service
+echo "  GPU persistence mode and 140W power limit will apply on every boot."
+echo "  To change the power limit later: sudo nvidia-smi -pl <watts>"
+
 echo ""
 echo "Installation complete."
 echo "After reboot, verify with:"
 echo "  nvidia-smi"
 echo "  nvcc --version"
+echo "  systemctl status gpu-tune.service"
 echo ""
 read -rp "Reboot now? [y/N] " confirm
 if [[ "${confirm,,}" == "y" ]]; then
