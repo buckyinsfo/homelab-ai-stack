@@ -83,6 +83,8 @@ services:
     image: nvcr.io/nvidia/k8s/dcgm-exporter:3.3.8-3.6.0-ubuntu22.04
     container_name: dcgm-exporter
     restart: unless-stopped
+    environment:
+      - DCGM_EXPORTER_COLLECTORS=/etc/dcgm-exporter/dcgm-metrics.csv
     deploy:
       resources:
         reservations:
@@ -92,6 +94,8 @@ services:
               capabilities: [gpu]
     cap_add:
       - SYS_ADMIN
+    volumes:
+      - ./dcgm-metrics.csv:/etc/dcgm-exporter/dcgm-metrics.csv:ro
     ports:
       - "9400:9400"
     networks:
