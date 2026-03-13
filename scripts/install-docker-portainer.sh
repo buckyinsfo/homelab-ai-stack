@@ -2,7 +2,7 @@
 # Docker CE + NVIDIA Container Toolkit + Portainer Installation
 # For Debian 12 (Bookworm)
 #
-# Usage: sudo ./install_docker_portainer.sh
+# Usage: sudo ./install-docker-portainer.sh
 
 set -euo pipefail
 

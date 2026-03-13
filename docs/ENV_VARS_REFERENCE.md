@@ -92,6 +92,7 @@ No environment variables required.
 | `EXA_API_KEY` | ⚠️ Optional | `exa-…` | API key for Exa web search. Required if using Exa-based skills. |
 | `GEMINI_API_KEY` | ⚠️ Optional | `AIza…` | Google Gemini API key. Required for the nano-banana-pro image generation skill (Gemini 3 Pro Image). Get one from [Google AI Studio](https://aistudio.google.com). |
 | `TELEGRAM_BOT_TOKEN` | ⚠️ Optional | `123456:ABC-…` | Telegram bot token for OpenClaw Telegram channel integration. Create a bot via [@BotFather](https://t.me/botfather). |
+| `OPENCLAW_GATEWAY_TOKEN` | 📝 Manual convenience | `<token>` | Optional Portainer-side scratch value for copy/paste during pairing. It is **not** consumed by the compose file or container. The real gateway token lives in `/srv/openclaw/config/openclaw.json`. |
 
 > `OLLAMA_BASE_URL` is hardcoded in the compose file as `http://ollama:11434` — no env var needed.
 >
@@ -101,6 +102,8 @@ No environment variables required.
 > ```
 >
 > **Note:** The auth token is stored in `/srv/openclaw/config/openclaw.json` on the host (not a Portainer env var). See the README for token rotation instructions.
+>
+> **Convenience note:** If you keep `OPENCLAW_GATEWAY_TOKEN` in Portainer for easy copy/paste during pairing, treat it as a manual reference only. Updating it in Portainer does not change OpenClaw's actual gateway token.
 
 ---
 
@@ -183,6 +186,7 @@ OPENROUTER_API_KEY=
 EXA_API_KEY=
 GEMINI_API_KEY=
 TELEGRAM_BOT_TOKEN=
+OPENCLAW_GATEWAY_TOKEN=   ← optional convenience-only value; not consumed by the stack
 
 # === openwebui ===
 DOMAIN=

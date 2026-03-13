@@ -209,7 +209,7 @@ echo "   1. sudo reboot  (recommended to clear kernel modules)"
 echo "   2. Verify: nvidia-smi"
 echo "   3. Clone the repo:"
 echo "      git clone https://github.com/buckyinsfo/homelab-ai-stack.git ~/homelab-ai-stack"
-echo "   4. Run: sudo ~/homelab-ai-stack/scripts/install_docker_portainer.sh"
+echo "   4. Run: sudo ~/homelab-ai-stack/scripts/install-docker-portainer.sh"
 echo "   5. Run: sudo DOMAIN=<domain> ~/homelab-ai-stack/scripts/bootstrap-server.sh"
 echo "   6. Deploy stacks in Portainer"
 echo

@@ -94,7 +94,16 @@
         "ttl": "1h"
       },
       "compaction": {
-        "mode": "safeguard"
+        "mode": "safeguard",
+        "memoryFlush": {
+          "enabled": true
+        }
+      },
+      "memorySearch": {
+        "experimental": {
+          "sessionMemory": true
+        },
+        "sources": ["memory", "sessions"]
       },
       "heartbeat": {
         "every": "30m",
