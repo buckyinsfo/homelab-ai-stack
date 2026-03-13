@@ -23,7 +23,7 @@ Open Grafana at `https://grafana.<domain>` and import these three community dash
 | Dashboard | ID | Purpose |
 |---|---|---|
 | Node Exporter Full | `1860` | Host CPU, memory, disk, network |
-| Docker and system monitoring | `893` | Per-container network/CPU graphs |
+| cAdvisor Docker Insights | `19908` | Per-container CPU, memory, network, disk I/O |
 | NVIDIA DCGM Exporter Dashboard | `12239` | GPU temp, power, utilization, memory |
 
 ### Step 2 — Fix the `${DS_PROMETHEUS}` variable
@@ -37,7 +37,7 @@ AUTH=$(echo -n "${GRAFANA_USER}:${GRAFANA_PASS}" | base64)
 DS_UID=$(curl -s http://localhost:3000/api/datasources/name/Prometheus \
   -H "Authorization: Basic ${AUTH}" | python3 -c "import json,sys; print(json.load(sys.stdin)['uid'])")
 
-for UID in rYdddlPWk adb2c94 Oxed_c6Wz; do
+for UID in rYdddlPWk ae3c41d7-cea5-4cca-a918-5708706b4d1a Oxed_c6Wz; do
   echo "Patching dashboard ${UID}..."
   curl -s http://localhost:3000/api/dashboards/uid/${UID} \
     -H "Authorization: Basic ${AUTH}" > /tmp/dash_${UID}.json
@@ -135,6 +135,4 @@ This is a driver-level restriction on consumer hardware — not a config issue. 
 |---|---|---|
 | Node Exporter Full (`1860`) | ✅ Fully working | All panels operational |
 | NVIDIA DCGM (`12239`) | ✅ Working | Tensor Core panel always "No data" on consumer GPUs |
-| Docker and system monitoring (`893`) | ⚠️ Partial | Container network/CPU graphs work; host stat panels (Uptime, Memory, Disk) show N/A — dashboard uses deprecated node-exporter metric names (`node_boot_time`, `node_memory_MemTotal` without `_bytes` suffix) incompatible with current node-exporter versions |
-
-The Docker dashboard's N/A stat panels are a known upstream compatibility issue with dashboard `893`. The container-level graphs (the main use case) work correctly. If the host stat panels are important, consider replacing `893` with a newer Docker dashboard or using the Node Exporter Full dashboard for host metrics.
+| cAdvisor Docker Insights (`19908`) | ✅ Fully working | All panels operational — replaces dashboard `893` which used deprecated node-exporter metric names |
