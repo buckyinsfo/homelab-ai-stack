@@ -22,12 +22,6 @@
       "anthropic:default": {
         "provider": "anthropic",
         "mode": "api_key"
-      },
-      "github:default": {
-        "provider": "github",
-        "mode": "api_key",
-        "apiKey": "${GITHUB_PAT}",
-        "username": "${GITHUB_USERNAME}"
       }
     }
   },
