@@ -16,7 +16,7 @@ services:
       OLLAMA_BASE_URL: http://ollama:11434
       OPENCLAW_BIND: lan
       GITHUB_USERNAME: ${GITHUB_USERNAME}
-      GITHUB_PAT: ${GITHUB_PAT}
+      GH_TOKEN: ${GH_TOKEN}
       
     volumes:
       - /srv/openclaw/config:/home/node/.openclaw

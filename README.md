@@ -260,7 +260,7 @@ The Ollama API is available to other containers on the `proxy` network at `http:
 
 ### openclaw
 
-Self-hosted AI assistant. Connects to Ollama for local models and to Anthropic/OpenAI/OpenRouter for cloud models. Set `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `EXA_API_KEY`, `GEMINI_API_KEY`, `TELEGRAM_BOT_TOKEN`, `DISCORD_BOT_TOKEN`, `GITHUB_PAT`, and `GITHUB_USERNAME` in Portainer environment variables.
+Self-hosted AI assistant. Connects to Ollama for local models and to Anthropic/OpenAI/OpenRouter for cloud models. Set `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `EXA_API_KEY`, `GEMINI_API_KEY`, `TELEGRAM_BOT_TOKEN`, `DISCORD_BOT_TOKEN`, `GH_TOKEN`, and `GITHUB_USERNAME` in Portainer environment variables.
 
 This stack builds a custom image from `images/openclaw/Dockerfile` so required skill runtime binaries (`bun` and `qmd`) are preinstalled at image build time.
 
