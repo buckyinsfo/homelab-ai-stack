@@ -92,6 +92,7 @@ No environment variables required.
 | `EXA_API_KEY` | ⚠️ Optional | `exa-…` | API key for Exa web search. Required if using Exa-based skills. |
 | `GEMINI_API_KEY` | ⚠️ Optional | `AIza…` | Google Gemini API key. Required for the nano-banana-pro image generation skill (Gemini 3 Pro Image). Get one from [Google AI Studio](https://aistudio.google.com). |
 | `TELEGRAM_BOT_TOKEN` | ⚠️ Optional | `123456:ABC-…` | Telegram bot token for OpenClaw Telegram channel integration. Create a bot via [@BotFather](https://t.me/botfather). |
+| `DISCORD_BOT_TOKEN` | ⚠️ Optional | `MTE0MjIw…` | Discord bot token for OpenClaw Discord channel integration. Create a bot in your Discord Server Settings → Integrations → Bots. |
 | `GITHUB_PAT` | ⚠️ Optional | `github_pat_…` | GitHub personal access token used by the OpenClaw GitHub auth profile in `openclaw.json`. Required for GitHub API access from skills or tools. |
 | `GITHUB_USERNAME` | ⚠️ Optional | `your-github-username` | GitHub username paired with `GITHUB_PAT` for the `github:default` auth profile in `openclaw.json`. |
 | `OPENCLAW_GATEWAY_TOKEN` | 📝 Manual convenience | `<token>` | Optional Portainer-side scratch value for copy/paste during pairing. It is **not** consumed by the compose file or container. The real gateway token lives in `/srv/openclaw/config/openclaw.json`. |
@@ -188,6 +189,7 @@ OPENROUTER_API_KEY=
 EXA_API_KEY=
 GEMINI_API_KEY=
 TELEGRAM_BOT_TOKEN=
+DISCORD_BOT_TOKEN=
 GITHUB_PAT=
 GITHUB_USERNAME=
 OPENCLAW_GATEWAY_TOKEN=   ← optional convenience-only value; not consumed by the stack
