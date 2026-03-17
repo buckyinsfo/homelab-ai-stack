@@ -5,9 +5,18 @@ services:
     container_name: openclaw
     restart: unless-stopped
 
-    env_file:
-      - ../../.env
     environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      EXA_API_KEY: ${EXA_API_KEY}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+      TRELLO_API_KEY: ${TRELLO_API_KEY}
+      TRELLO_TOKEN: ${TRELLO_TOKEN}
+      GH_TOKEN: ${GH_TOKEN}
+      GITHUB_USERNAME: ${GITHUB_USERNAME}
       OLLAMA_BASE_URL: http://ollama:11434
       OPENCLAW_BIND: lan
       
