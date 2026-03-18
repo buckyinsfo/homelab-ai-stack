@@ -35,6 +35,7 @@ These can be the same value if you're routing by hostname rather than a separate
 | **openclaw** | Self-hosted AI assistant (Ollama + Anthropic + OpenAI) | `stacks/openclaw/compose.yml` | No |
 | **openwebui** | Browser chat UI for Ollama | `stacks/openwebui/compose.yml` | No |
 | **adminer** | Web-based Postgres (and multi-DB) admin UI | `stacks/adminer/compose.yml` | Yes |
+| **nextcloud** | Self-hosted file storage and sync | `stacks/nextcloud/compose.yml` | Yes |
 | **quai-miner** | Rigel GPU miner (Quai / KawPow) | `stacks/quai-miner/compose.yml` | Yes |
 
 ---
@@ -194,7 +195,8 @@ Before clicking **Deploy**, scroll down to the **Environment variables** section
 | 7 | **openclaw** | `stacks/openclaw/compose.yml` | See post-deploy steps in §7 |
 | 8 | **openwebui** | `stacks/openwebui/compose.yml` | |
 | 9 | **adminer** *(optional)* | `stacks/adminer/compose.yml` | |
-| 10 | **quai-miner** *(optional)* | `stacks/quai-miner/compose.yml` | Deploy paused — start manually |
+| 10 | **nextcloud** *(optional)* | `stacks/nextcloud/compose.yml` | Create `nextcloud` DB in Postgres first |
+| 11 | **quai-miner** *(optional)* | `stacks/quai-miner/compose.yml` | Deploy paused — start manually |
 
 > **infra must be deployed first.** Every other stack joins the `proxy` network that infra creates. Deploying any other stack before infra will fail.
 
@@ -219,6 +221,7 @@ Once deployed, all services are available at:
 | OpenClaw | `https://openclaw.<domain>` |
 | Open WebUI | `https://ai.<domain>` |
 | Adminer | `https://adminer.<domain>` |
+| Nextcloud | `https://cloud.<domain>` |
 
 > For `.local` hostnames to resolve on your LAN, see [Local DNS Setup](#local-dns-setup) below.
 
@@ -384,6 +387,27 @@ When entering in Portainer, escape every `$` as `$$`.
 
 > **Security note:** Adminer exposes full database access. Keep this behind the Traefik basic-auth middleware and never expose port 8080 directly.
 
+### nextcloud *(optional)*
+
+Self-hosted file sync and storage. Uses the shared Postgres and Redis instances already running in the stack, and routes through Traefik at `https://cloud.<DOMAIN>`.
+
+Before deploying, create the host directories and the Nextcloud database:
+
+```bash
+sudo mkdir -p /srv/nextcloud/{data,apps,config}
+docker exec -it postgres psql -U <POSTGRES_USER> -c "CREATE DATABASE nextcloud;"
+```
+
+Then deploy the stack in Portainer. On first boot, Nextcloud runs its installer using the env vars you set — no browser-based setup wizard needed.
+
+After deploying, open `https://cloud.<DOMAIN>` and log in with `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD`.
+
+> **Cron jobs:** Nextcloud background jobs default to AJAX mode (runs on page load). For a proper setup, switch to Cron mode in Settings → Basic Settings → Background jobs, then add a host-level cron entry:
+> ```bash
+> # /etc/cron.d/nextcloud
+> */5 * * * * root docker exec -u www-data nextcloud php -f /var/www/html/cron.php
+> ```
+
 ### quai-miner *(optional)*
 
 Rigel GPU miner for Quai (KawPow). Set `ALGO`, `POOL`, `WALLET`, and `WORKER` in Portainer environment variables. See `stacks/quai-miner/.env.example` for defaults.
@@ -453,6 +477,7 @@ sudo tee -a /etc/hosts <<EOF
 <server-ip>  openclaw.<domain>
 <server-ip>  ai.<domain>
 <server-ip>  adminer.<domain>
+<server-ip>  cloud.<domain>
 <server-ip>  qdrant.<domain>
 EOF
 ```
@@ -501,6 +526,7 @@ stacks/
   openclaw/compose.yml           # AI assistant
   openwebui/compose.yml          # Browser chat UI for Ollama
   adminer/compose.yml            # Web DB admin (Postgres + others)
+  nextcloud/compose.yml          # Self-hosted file sync (optional)
   quai-miner/compose.yml         # GPU miner
 images/
   openclaw/Dockerfile            # Custom OpenClaw image (bun + qmd preinstalled)

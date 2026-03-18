@@ -146,6 +146,31 @@ No environment variables required.
 
 ---
 
+## nextcloud *(optional)*
+
+| Variable | Required | Example / Default | Description |
+|---|---|---|---|
+| `DOMAIN` | ✅ Yes | `<domain>` | Used in the Traefik routing rule (`cloud.${DOMAIN}`). Must match the value in `infra`. |
+| `POSTGRES_USER` | ✅ Yes | `<db-user>` | Must match the value set in the `postgres` stack. |
+| `POSTGRES_PASSWORD` | ✅ Yes | *(strong secret)* | Must match the value set in the `postgres` stack. |
+| `NEXTCLOUD_DB_NAME` | ✅ Yes | `nextcloud` | Name of the Nextcloud database. Must exist in Postgres before first boot — create it manually. |
+| `NEXTCLOUD_ADMIN_USER` | ✅ Yes | `admin` | Admin account created on first boot. Cannot be changed via env var after initial setup. |
+| `NEXTCLOUD_ADMIN_PASSWORD` | ✅ Yes | *(strong secret)* | Admin password set on first boot. Generate with `openssl rand -hex 20`. |
+| `NEXTCLOUD_PHP_MEMORY_LIMIT` | ⚠️ Optional | `512M` | PHP memory limit. Increase for large file operations or many users. |
+| `NEXTCLOUD_PHP_UPLOAD_LIMIT` | ⚠️ Optional | `512M` | Maximum upload size. Match or exceed your largest expected file transfer. |
+
+> **Pre-deploy steps:** Create host directories and the Nextcloud database before deploying:
+> ```bash
+> sudo mkdir -p /srv/nextcloud/{data,apps,config}
+> docker exec -it postgres psql -U <POSTGRES_USER> -c "CREATE DATABASE nextcloud;"
+> ```
+>
+> Redis is used automatically for session caching and locking — no Redis password needed since the stack uses unauthenticated Redis.
+>
+> After deploying, open `https://cloud.<DOMAIN>` and log in with the admin credentials above.
+
+---
+
 ## quai-miner
 
 | Variable | Required | Example / Default | Description |
@@ -203,7 +228,17 @@ DOMAIN=
 
 # === adminer ===
 DOMAIN=
-ADMINER_BASICAUTH_USERS=   ← remember: escape every $ as $$
+ADMINER_BASICAUTH_USERS=   ← remember: escape every $ as $
+
+# === nextcloud (optional) ===
+DOMAIN=
+POSTGRES_USER=
+POSTGRES_PASSWORD=
+NEXTCLOUD_DB_NAME=nextcloud
+NEXTCLOUD_ADMIN_USER=admin
+NEXTCLOUD_ADMIN_PASSWORD=
+NEXTCLOUD_PHP_MEMORY_LIMIT=512M
+NEXTCLOUD_PHP_UPLOAD_LIMIT=512M
 
 # === quai-miner ===
 ALGO=kawpow
