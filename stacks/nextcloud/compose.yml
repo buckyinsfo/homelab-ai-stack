@@ -21,11 +21,6 @@ services:
       - /srv/nextcloud/config:/var/www/html/config
     networks:
       - proxy
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     labels:
       traefik.enable: "true"
       traefik.http.routers.nextcloud.rule: "Host(`cloud.${DOMAIN}`)"
