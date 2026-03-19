@@ -97,6 +97,7 @@ No environment variables required.
 | `DISCORD_BOT_TOKEN` | ⚠️ Optional | `MTE0MjIw…` | Discord bot token for OpenClaw Discord channel integration. Create a bot in your Discord Server Settings → Integrations → Bots. |
 | `GH_TOKEN` | ⚠️ Optional | `github_pat_…` | GitHub personal access token used by the OpenClaw GitHub auth profile in `openclaw.json`. Required for GitHub API access from skills or tools. |
 | `GITHUB_USERNAME` | ⚠️ Optional | `your-github-username` | GitHub username paired with `GH_TOKEN` for the `github:default` auth profile in `openclaw.json`. |
+| `NEXTCLOUD_AGENTS_PASSWORD` | ✅ Yes | *(strong secret)* | Shared password for Nextcloud agent accounts. Used by OpenClaw agents to connect to Nextcloud for document storage. Generate with `openssl rand -hex 20`. |
 | `OPENCLAW_GATEWAY_TOKEN` | 📝 Manual convenience | `<token>` | Optional Portainer-side scratch value for copy/paste during pairing. It is **not** consumed by the compose file or container. The real gateway token lives in `/srv/openclaw/config/openclaw.json`. |
 
 > `OLLAMA_BASE_URL` is hardcoded in the compose file as `http://ollama:11434` — no env var needed.
@@ -168,6 +169,8 @@ No environment variables required.
 > Redis is used automatically for session caching and locking — no Redis password needed since the stack uses unauthenticated Redis.
 >
 > After deploying, open `https://cloud.<DOMAIN>` and log in with the admin credentials above.
+>
+> **Agent accounts:** Three service accounts (eamon, maeve, ronan) are created in Nextcloud for OpenClaw agents. They share the password stored in `NEXTCLOUD_AGENTS_PASSWORD` (set in the openclaw stack environment). Each has a dedicated folder (`/Eamon/`, `/Maeve/`, `/Ronan/`) with read/write access.
 
 ---
 
@@ -221,7 +224,8 @@ TRELLO_TOKEN=
 DISCORD_BOT_TOKEN=
 GH_TOKEN=
 GITHUB_USERNAME=
-OPENCLAW_GATEWAY_TOKEN=   ← optional convenience-only value; not consumed by the stack
+NEXTCLOUD_AGENTS_PASSWORD=   ← shared password for agent accounts (eamon, maeve, ronan)
+OPENCLAW_GATEWAY_TOKEN=      ← optional convenience-only value; not consumed by the stack
 
 # === openwebui ===
 DOMAIN=
