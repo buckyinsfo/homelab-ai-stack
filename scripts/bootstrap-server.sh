@@ -54,19 +54,23 @@ for service in ollama postgres redis qdrant openwebui; do
   fi
 done
 
+SANDBOX_ROOT="${SANDBOX_ROOT:-/srv/sandbox}"
+
 echo "==> Creating host directories"
 mkdir -p \
   "${OPENCLAW_ROOT}/config" \
-  "${OPENCLAW_ROOT}/config/skills" \
+  "${OPENCLAW_ROOT}/skills" \
   "${OPENCLAW_ROOT}/workspace" \
   "${OPENCLAW_ROOT}/workspace/${WORKSPACE_SUBDIR}" \
   "${OPENCLAW_ROOT}/logs" \
+  "${SANDBOX_ROOT}" \
   "${CERT_DIR}" \
   "${TRAEFIK_DIR}" \
   "${BACKUP_DIR}"
 
 echo "==> Setting ownership for OpenClaw host paths (${OPENCLAW_UID}:${OPENCLAW_GID})"
 chown -R "${OPENCLAW_UID}:${OPENCLAW_GID}" "${OPENCLAW_ROOT}"
+chown -R "${OPENCLAW_UID}:${OPENCLAW_GID}" "${SANDBOX_ROOT}"
 
 if [[ "${FORCE_CERTS}" == "1" || ! -s "${CERT_FILE}" || ! -s "${KEY_FILE}" ]]; then
   echo "==> Generating self-signed certificate: ${CERT_FILE}"
@@ -104,6 +108,7 @@ echo "Domain: ${DOMAIN}"
 echo "Certificate: ${CERT_FILE}"
 echo "Traefik dynamic config: ${DYNAMIC_FILE}"
 echo "Workspace code path: ${OPENCLAW_ROOT}/workspace/${WORKSPACE_SUBDIR}"
+echo "Sandbox path: ${SANDBOX_ROOT}"
 echo
 echo "Docker data path: ${DATA_DIR} (ollama, postgres, redis, qdrant, openwebui)"
 echo "Next step: in Portainer, pull and redeploy the infra stack."

@@ -37,6 +37,7 @@ These can be the same value if you're routing by hostname rather than a separate
 | **adminer** | Web-based Postgres (and multi-DB) admin UI | `stacks/adminer/compose.yml` | Yes |
 | **nextcloud** | Self-hosted file storage and sync | `stacks/nextcloud/compose.yml` | Yes |
 | **quai-miner** | Rigel GPU miner (Quai / KawPow) | `stacks/quai-miner/compose.yml` | Yes |
+| **openclaw-sandbox** | Ephemeral OpenClaw for config experimentation | `stacks/openclaw-sandbox/compose.yml` | Yes |
 
 ---
 
@@ -48,10 +49,49 @@ These can be the same value if you're routing by hostname rather than a separate
 3.  Docker + NVIDIA Container
     Toolkit + Portainer           ← scripts/install-docker-portainer.sh
 4.  Bootstrap host filesystem     ← scripts/bootstrap-server.sh
-5.  Deploy stacks via Portainer   ← repeat Add Stack flow once per stack (§6)
+5.  Node.js via fnm (optional)    ← scripts/install-node.sh
+6.  Deploy stacks via Portainer   ← repeat Add Stack flow once per stack (§7)
 ```
 
+> **Step 5 is only needed if you are developing or debugging Node.js apps (e.g. Gila) directly on the server.** Skip it for a pure inference/mining box.
+
 > **Prepare env vars before deploying.** Each stack needs its own env vars set in Portainer before clicking Deploy. See [`docs/ENV_VARS_REFERENCE.md`](docs/ENV_VARS_REFERENCE.md) for the full table.
+
+---
+
+## 5) Node.js (Optional — Dev Only)
+
+Only needed if you are developing or debugging Node.js applications directly on the server. Run as the **dev user** (not root) — fnm installs to the user's home directory with no system-level changes.
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/buckyinsfo/homelab-ai-stack/main/scripts/install-node.sh)
+```
+
+After the script completes, reload your shell:
+
+```bash
+source ~/.bashrc
+```
+
+Verify:
+
+```bash
+node --version
+npm --version
+```
+
+By default Node 22 is installed. To install a different version:
+
+```bash
+NODE_VERSION=20 bash <(curl -fsSL ...)
+```
+
+To install project dependencies after cloning:
+
+```bash
+cd ~/development/gila/client && npm install
+cd ~/development/gila/server && npm install
+```
 
 ---
 
@@ -138,10 +178,11 @@ sudo DOMAIN=<domain> CERT_BASENAME=<domain> /tmp/bootstrap-server.sh
 | `WORKSPACE_SUBDIR` | `development` | Subfolder under `/srv/openclaw/workspace/` |
 | `FORCE_CERTS` | `0` | Set to `1` to regenerate cert/key even if they exist |
 | `FORCE_DYNAMIC` | `0` | Set to `1` to overwrite `/srv/traefik/dynamic.yml` |
+| `SANDBOX_ROOT` | `/srv/sandbox` | Root path for sandbox bind-mount dirs (config only) |
 
 ---
 
-## 5) GPU Tuning (Host-Level)
+## 6) GPU Tuning (Host-Level)
 
 Handled automatically by `install-nvidia-drivers.sh` — it creates and enables a `gpu-tune.service` systemd unit that applies persistence mode and a 140W power limit on every boot.
 
@@ -162,7 +203,7 @@ sudo systemctl daemon-reload
 
 ---
 
-## 6) Deploy Stacks via Portainer GitOps
+## 7) Deploy Stacks via Portainer GitOps
 
 Each stack in this repo is deployed individually through Portainer. You'll repeat the same flow once per stack, in order. The repo is public so no authentication is needed.
 
@@ -197,12 +238,13 @@ Before clicking **Deploy**, scroll down to the **Environment variables** section
 | 9 | **adminer** *(optional)* | `stacks/adminer/compose.yml` | |
 | 10 | **nextcloud** *(optional)* | `stacks/nextcloud/compose.yml` | Create `nextcloud` DB in Postgres first |
 | 11 | **quai-miner** *(optional)* | `stacks/quai-miner/compose.yml` | Deploy paused — start manually |
+| 12 | **openclaw-sandbox** *(optional)* | `stacks/openclaw-sandbox/compose.yml` | Standalone — no shared state with openclaw |
 
 > **infra must be deployed first.** Every other stack joins the `proxy` network that infra creates. Deploying any other stack before infra will fail.
 
 ---
 
-## 7) Post-Deploy Steps per Stack
+## 8) Post-Deploy Steps per Stack
 
 Most stacks are fully self-configuring once deployed. A few require post-deploy steps on the server or in the browser. Those are documented below — stacks with no entry here need nothing beyond deploying in Portainer.
 
@@ -219,6 +261,7 @@ Once deployed, all services are available at:
 | Prometheus | `https://prometheus.<domain>` |
 | Ollama API | `https://ollama.<domain>` |
 | OpenClaw | `https://openclaw.<domain>` |
+| OpenClaw Sandbox | `https://sandbox.<domain>` |
 | Open WebUI | `https://ai.<domain>` |
 | Adminer | `https://adminer.<domain>` |
 | Nextcloud | `https://cloud.<domain>` |
@@ -408,6 +451,34 @@ After deploying, open `https://cloud.<DOMAIN>` and log in with `NEXTCLOUD_ADMIN_
 > */5 * * * * root docker exec -u www-data nextcloud php -f /var/www/html/cron.php
 > ```
 
+### openclaw-sandbox *(optional)*
+
+An isolated OpenClaw instance for experimenting with config, models, and tools without affecting the production `openclaw` stack. Uses only Anthropic and OpenAI — no Ollama, no shared volumes, no channel integrations.
+
+`restart: "no"` means the container stays down after a manual stop or host reboot — it will not auto-restart. Spin it up when you need it, stop it when you're done.
+
+`/srv/sandbox` is bind-mounted in full, mirroring the same pattern as the production `openclaw` stack. Config, workspace, logs, and memory all land there — fully separate from `/srv/openclaw`.
+
+Before first start, copy the example config into place and set a token:
+
+```bash
+sudo cp stacks/openclaw-sandbox/openclaw.json.example /srv/sandbox/config/openclaw.json
+sudo chown -R 1000:1000 /srv/sandbox
+
+# Generate a token and patch it in
+NEW_TOKEN=$(openssl rand -hex 32)
+sudo sed -E -i 's#("token"[[:space:]]*:[[:space:]]*")[^"]+(")|#\1'"$NEW_TOKEN"'\2#' /srv/sandbox/config/openclaw.json
+
+# Update the allowedOrigins to match your domain
+sudo sed -i 's|sandbox.YOURHOSTNAME|sandbox.<domain>|g' /srv/sandbox/config/openclaw.json
+```
+
+Then deploy in Portainer and start the container. Access the sandbox UI at `https://sandbox.<DOMAIN>`.
+
+> **Note:** `bootstrap-server.sh` creates `/srv/sandbox` and sets ownership automatically. No manual directory creation needed.
+
+---
+
 ### quai-miner *(optional)*
 
 Rigel GPU miner for Quai (KawPow). Set `ALGO`, `POOL`, `WALLET`, and `WORKER` in Portainer environment variables. See `stacks/quai-miner/.env.example` for defaults.
@@ -422,7 +493,7 @@ docker logs rigel --tail 100
 
 ---
 
-## 8) Secrets Strategy
+## 9) Secrets Strategy
 
 **Never commit `.env` files.** Set environment variables directly in Portainer's stack editor.
 
@@ -430,7 +501,7 @@ Each stack includes a `.env.example` showing which variables are required.
 
 ---
 
-## 9) GPU Sharing Note
+## 10) GPU Sharing Note
 
 The RTX 3070 has 8 GB VRAM. Running Ollama and the Quai miner simultaneously will compete for GPU memory. Options:
 
@@ -440,7 +511,7 @@ The RTX 3070 has 8 GB VRAM. Running Ollama and the Quai miner simultaneously wil
 
 ---
 
-## 10) Backups
+## 11) Backups
 
 ### One-liner volume backup
 
@@ -475,6 +546,7 @@ sudo tee -a /etc/hosts <<EOF
 <server-ip>  prometheus.<domain>
 <server-ip>  ollama.<domain>
 <server-ip>  openclaw.<domain>
+<server-ip>  sandbox.<domain>
 <server-ip>  ai.<domain>
 <server-ip>  adminer.<domain>
 <server-ip>  cloud.<domain>
@@ -524,6 +596,7 @@ stacks/
     compose.yml                  # Prometheus + Grafana + exporters (configs embedded inline)
   ollama/compose.yml             # Local LLM inference
   openclaw/compose.yml           # AI assistant
+  openclaw-sandbox/compose.yml   # Isolated OpenClaw for config experimentation (optional)
   openwebui/compose.yml          # Browser chat UI for Ollama
   adminer/compose.yml            # Web DB admin (Postgres + others)
   nextcloud/compose.yml          # Self-hosted file sync (optional)
@@ -535,6 +608,7 @@ scripts/
   bootstrap-server.sh            # Create /srv paths, certs, and Traefik dynamic.yml
   install-nvidia-drivers.sh      # NVIDIA driver install + GPU tuning
   install-docker-portainer.sh    # Docker CE + NVIDIA Container Toolkit + Portainer
+  install-node.sh                # Node.js via fnm (optional, dev-only)
 docs/
   ENV_VARS_REFERENCE.md          # Environment variables per stack
   MONITORING_SETUP.md            # Grafana dashboard import + variable fix walkthrough

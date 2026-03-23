@@ -5,7 +5,7 @@ Use this document to prepare all secrets and configuration values **before** dep
 > **Placeholders:** Replace `<hostname>` with your server's hostname and `<domain>` with your Traefik routing domain before filling in values. See the README `Before You Begin` section for details.
 
 > **Tip:** Work through each stack in deploy order:
-> `infra → postgres → redis → qdrant → monitoring → ollama → openclaw → openwebui → adminer → quai-miner`
+> `infra → postgres → redis → qdrant → monitoring → ollama → openclaw → openwebui → adminer → quai-miner → openclaw-sandbox`
 
 ---
 
@@ -174,6 +174,22 @@ No environment variables required.
 
 ---
 
+## openclaw-sandbox *(optional)*
+
+| Variable | Required | Example / Default | Description |
+|---|---|---|---|
+| `DOMAIN` | ✅ Yes | `<domain>` | Used in the Traefik routing rule (`sandbox.${DOMAIN}`). Must match the value in `infra`. |
+| `ANTHROPIC_API_KEY` | ✅ Yes | `sk-ant-…` | API key for Claude (Anthropic). Used as the primary model (`claude-sonnet-4-6`). |
+| `OPENAI_API_KEY` | ⚠️ Optional | `sk-…` | API key for OpenAI models. Required only if you want to test GPT-4.5 routing. |
+
+> Ollama is connected at `http://ollama:11434` for local model access (heartbeats use `llama3.2`). No Telegram/Discord tokens, no Nextcloud, no OpenRouter. This stack is intentionally minimal.
+>
+> `/srv/sandbox` is bind-mounted in full — same pattern as production openclaw, fully separate from `/srv/openclaw`. Config, workspace, logs, and memory all persist there.
+>
+> See post-deploy steps in the README `openclaw-sandbox` section for first-run config setup.
+
+---
+
 ## quai-miner
 
 | Variable | Required | Example / Default | Description |
@@ -243,6 +259,11 @@ NEXTCLOUD_ADMIN_USER=admin
 NEXTCLOUD_ADMIN_PASSWORD=
 NEXTCLOUD_PHP_MEMORY_LIMIT=512M
 NEXTCLOUD_PHP_UPLOAD_LIMIT=512M
+
+# === openclaw-sandbox (optional) ===
+DOMAIN=
+ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
 
 # === quai-miner ===
 ALGO=kawpow

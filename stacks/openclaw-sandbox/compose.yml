@@ -1,0 +1,29 @@
+services:
+  openclaw-sandbox:
+    build:
+      context: ../../images/openclaw
+    container_name: openclaw-sandbox
+    restart: "no"
+
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OLLAMA_BASE_URL: http://ollama:11434
+      OPENCLAW_BIND: lan
+
+    volumes:
+      - /srv/sandbox:/home/node/.openclaw
+
+    networks:
+      - proxy
+
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.openclaw-sandbox.rule: "Host(`sandbox.${DOMAIN}`)"
+      traefik.http.routers.openclaw-sandbox.entrypoints: "websecure"
+      traefik.http.routers.openclaw-sandbox.tls: "true"
+      traefik.http.services.openclaw-sandbox.loadbalancer.server.port: "18789"
+
+networks:
+  proxy:
+    external: true

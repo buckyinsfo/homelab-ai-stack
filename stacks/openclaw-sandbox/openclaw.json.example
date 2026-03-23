@@ -1,0 +1,114 @@
+{
+  "meta": {
+    "lastTouchedVersion": "2026.3.2",
+    "lastTouchedAt": "2026-03-22T00:00:00.000Z"
+  },
+  "wizard": {
+    "lastRunAt": "2026-03-22T00:00:00.000Z",
+    "lastRunVersion": "2026.3.2",
+    "lastRunCommand": "doctor",
+    "lastRunMode": "local"
+  },
+  "auth": {
+    "profiles": {
+      "anthropic:default": {
+        "provider": "anthropic",
+        "mode": "api_key"
+      },
+      "openai:default": {
+        "provider": "openai",
+        "mode": "api_key"
+      }
+    }
+  },
+  "models": {
+    "providers": {
+      "ollama": {
+        "baseUrl": "http://ollama:11434",
+        "apiKey": "ollama-local",
+        "api": "ollama",
+        "models": [
+          {
+            "id": "llama3.2:latest",
+            "name": "Llama 3.2 3B",
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 8192,
+            "maxTokens": 4096
+          }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "anthropic/claude-sonnet-4-6",
+        "fallbacks": []
+      },
+      "models": {
+        "anthropic/claude-sonnet-4-6": { "alias": "sonnet" },
+        "openai/gpt-5.4": { "alias": "gpt" },
+        "ollama/llama3.2:latest": { "alias": "llama" }
+      },
+      "workspace": "/home/node/.openclaw/workspace",
+      "contextPruning": {
+        "mode": "cache-ttl",
+        "ttl": "1h"
+      },
+      "compaction": {
+        "mode": "safeguard",
+        "memoryFlush": {
+          "enabled": true
+        }
+      },
+      "memorySearch": {
+        "experimental": {
+          "sessionMemory": true
+        },
+        "sources": ["memory", "sessions"]
+      },
+      "heartbeat": {
+        "every": "30m",
+        "model": "ollama/llama3.2:latest"
+      }
+    },
+    "list": [
+      {
+        "id": "main",
+        "identity": {
+          "name": "sandbox"
+        }
+      }
+    ]
+  },
+  "tools": {
+    "profile": "minimal"
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto",
+    "restart": true,
+    "ownerDisplay": "raw"
+  },
+  "session": {
+    "dmScope": "per-channel-peer"
+  },
+  "channels": {},
+  "gateway": {
+    "port": 18789,
+    "mode": "local",
+    "bind": "lan",
+    "controlUi": {
+      "allowedOrigins": ["https://sandbox.YOURHOSTNAME"]
+    },
+    "auth": {
+      "mode": "token",
+      "token": "REPLACE_WITH_SECURE_TOKEN"
+    },
+    "tailscale": {
+      "mode": "off",
+      "resetOnExit": false
+    }
+  }
+}
