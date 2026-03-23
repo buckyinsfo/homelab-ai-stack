@@ -365,6 +365,25 @@ curl -sS https://api.exa.ai/search \
 
 Expected: JSON response with `results` and non-zero `searchTime`.
 
+#### First login
+
+The OpenClaw UI requires a tokenized URL for the initial connection. Open a private browser window and navigate to:
+
+```
+https://openclaw.<domain>/?gatewayUrl=wss://openclaw.<domain>&token=<OPENCLAW_GATEWAY_TOKEN>
+```
+
+Replace `<OPENCLAW_GATEWAY_TOKEN>` with the value you set in Portainer for this stack.
+
+If the UI shows `pairing required`, approve the device on `<hostname>`:
+
+```bash
+docker exec -it openclaw openclaw devices list
+docker exec -it openclaw openclaw devices approve <REQUEST_ID>
+```
+
+Refresh and the dashboard will connect. Remove the tokenized URL from browser history after successful login — subsequent visits to `https://openclaw.<domain>` will connect automatically using the stored pairing.
+
 #### Rotate OpenClaw auth token
 
 The gateway auth token is stored in Portainer as `OPENCLAW_GATEWAY_TOKEN`. The `openclaw.json` config references it as `${OPENCLAW_GATEWAY_TOKEN}` — no secret is written to disk.
@@ -449,21 +468,35 @@ An isolated OpenClaw instance for experimenting with config, models, and tools w
 
 `/srv/sandbox` is bind-mounted in full, mirroring the same pattern as the production `openclaw` stack. Config, workspace, logs, and memory all land there — fully separate from `/srv/openclaw`.
 
-Before first start, copy the example config into place and set a token:
+Before first start, drop the config into place:
 
 ```bash
-sudo cp stacks/openclaw-sandbox/openclaw.json.example /srv/sandbox/config/openclaw.json
-sudo chown -R 1000:1000 /srv/sandbox
-
-# Generate a token and patch it in
-NEW_TOKEN=$(openssl rand -hex 32)
-sudo sed -E -i 's#("token"[[:space:]]*:[[:space:]]*")[^"]+(")|#\1'"$NEW_TOKEN"'\2#' /srv/sandbox/config/openclaw.json
-
-# Update the allowedOrigins to match your domain
-sudo sed -i 's|sandbox.YOURHOSTNAME|sandbox.<domain>|g' /srv/sandbox/config/openclaw.json
+sudo cp /path/to/openclaw-sandbox.json /srv/sandbox/openclaw.json
+sudo chown 1000:1000 /srv/sandbox/openclaw.json
 ```
 
-Then deploy in Portainer and start the container. Access the sandbox UI at `https://sandbox.<DOMAIN>`.
+The gateway token is read from the `OPENCLAW_GATEWAY_TOKEN` environment variable set in Portainer — no patching needed. Use a different token value than production so the two instances are independently secured.
+
+Then deploy in Portainer and start the container.
+
+#### First login
+
+Open a private browser window and navigate to:
+
+```
+https://sandbox.<domain>/?gatewayUrl=wss://sandbox.<domain>&token=<OPENCLAW_GATEWAY_TOKEN>
+```
+
+Replace `<OPENCLAW_GATEWAY_TOKEN>` with the value you set in Portainer for the sandbox stack — use a different token than production.
+
+If the UI shows `pairing required`, approve the device on `<hostname>`:
+
+```bash
+docker exec -it openclaw-sandbox openclaw devices list
+docker exec -it openclaw-sandbox openclaw devices approve <REQUEST_ID>
+```
+
+Remove the tokenized URL from browser history after successful login.
 
 > **Note:** `bootstrap-server.sh` creates `/srv/sandbox` and sets ownership automatically. No manual directory creation needed.
 
