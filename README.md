@@ -365,34 +365,24 @@ curl -sS https://api.exa.ai/search \
 
 Expected: JSON response with `results` and non-zero `searchTime`.
 
-#### Rotate OpenClaw auth token (host-side secret)
+#### Rotate OpenClaw auth token
 
-OpenClaw auth token is stored on the host at `/srv/openclaw/config/openclaw.json` and is **not** managed by GitOps.
+The gateway auth token is stored in Portainer as `OPENCLAW_GATEWAY_TOKEN`. The `openclaw.json` config references it as `${OPENCLAW_GATEWAY_TOKEN}` — no secret is written to disk.
 
-On `<hostname>`:
+To rotate:
 
+1. Generate a new token:
 ```bash
-# 1) Backup current config
-sudo cp /srv/openclaw/config/openclaw.json /srv/openclaw/config/openclaw.json.bak.$(date +%F-%H%M%S)
-
-# 2) Generate and set a new token
-NEW_TOKEN=$(openssl rand -hex 32)
-sudo sed -E -i 's#("token"[[:space:]]*:[[:space:]]*")[^"]+(")#\1'"$NEW_TOKEN"'\2#' /srv/openclaw/config/openclaw.json
-
-# 3) Restart OpenClaw
-docker restart openclaw
-
-# 4) Verify host + container read the same token
-sudo grep -nE '"auth"|"token"' /srv/openclaw/config/openclaw.json
-docker exec openclaw sh -lc "grep -nE '\"auth\"|\"token\"' /home/node/.openclaw/openclaw.json"
+   openssl rand -hex 32
 ```
+2. In Portainer, open the **openclaw** stack → **Environment variables** → update `OPENCLAW_GATEWAY_TOKEN` with the new value.
+3. Click **Update the stack** to redeploy with the new token.
 
 Usability check (from any browser on LAN):
 
 1. Open a private window with:
    - `https://openclaw.<domain>/?gatewayUrl=wss://openclaw.<domain>&token=<NEW_TOKEN>`
 2. If UI shows `pairing required`, approve the pending device on `<hostname>`:
-
 ```bash
 docker exec -it openclaw openclaw devices list
 docker exec -it openclaw openclaw devices approve <REQUEST_ID>
