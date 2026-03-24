@@ -39,6 +39,7 @@ services:
     environment:
       JWT_ENABLED: "true"
       JWT_SECRET: ${ONLYOFFICE_JWT_SECRET}
+      NODE_TLS_REJECT_UNAUTHORIZED: "0"
     volumes:
       - /srv/onlyoffice/data:/var/www/onlyoffice/Data
       - /srv/onlyoffice/logs:/var/log/onlyoffice
