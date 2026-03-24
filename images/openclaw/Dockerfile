@@ -3,7 +3,7 @@ FROM ghcr.io/openclaw/openclaw:latest
 USER root
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends bash curl ca-certificates unzip git gh jq && \
+    apt-get install -y --no-install-recommends bash curl ca-certificates unzip git gh jq tree ripgrep htop ncdu && \
     rm -rf /var/lib/apt/lists/*
 
 ENV BUN_INSTALL=/opt/bun
