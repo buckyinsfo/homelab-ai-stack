@@ -306,74 +306,62 @@ The Ollama API is available to other containers on the `proxy` network at `http:
 
 ### openclaw
 
-Self-hosted AI assistant. Connects to Ollama for local models and to Anthropic/OpenAI/OpenRouter for cloud models. Set `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `EXA_API_KEY`, `GEMINI_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TRELLO_API_KEY`, `TRELLO_TOKEN`, `DISCORD_BOT_TOKEN`, `GH_TOKEN`, and `GITHUB_USERNAME` in Portainer environment variables.
+Self-hosted AI assistant. Connects to Ollama for local models and to Anthropic/OpenAI/OpenRouter for cloud models. This stack builds a custom image from `images/openclaw/Dockerfile` so required skill runtime binaries (`bun` and `qmd`) are preinstalled at image build time.
 
-This stack builds a custom image from `images/openclaw/Dockerfile` so required skill runtime binaries (`bun` and `qmd`) are preinstalled at image build time.
+#### Before deploying — generate a gateway token
 
-**Channel integrations:**
-- **Telegram** — Set `TELEGRAM_BOT_TOKEN` to enable Telegram DMs and group chat
-- **Discord** — Set `DISCORD_BOT_TOKEN` to enable Discord server and DM integration
-
-After first deploy, run the setup wizard:
+Generate a token and add it as `OPENCLAW_GATEWAY_TOKEN` in Portainer before clicking Deploy:
 
 ```bash
-docker exec -it openclaw node dist/index.js setup
+openssl rand -hex 32
 ```
 
-To preinstall skills before the container first starts, clone them into the bind-mount path:
+Set your env vars in Portainer before deploying. Only `ANTHROPIC_API_KEY` is required to get started — add others as needed for the integrations you want:
+
+| Variable | Purpose |
+|---|---|
+| `ANTHROPIC_API_KEY` | Primary model provider (required) |
+| `OPENAI_API_KEY` | OpenAI model access |
+| `GEMINI_API_KEY` | Google Gemini model access |
+| `TELEGRAM_BOT_TOKEN` | Telegram channel integration |
+| `DISCORD_BOT_TOKEN` | Discord channel integration |
+| `TRELLO_API_KEY` / `TRELLO_TOKEN` | Trello tool access |
+| `GH_TOKEN` + `GITHUB_USERNAME` | GitHub tool access |
+
+#### Post-deploy setup (run once after first deploy)
+
+The container will already be running. Run these steps on `<hostname>`:
 
 ```bash
-sudo git clone --depth 1 https://github.com/owner/repo-name.git \
-  /srv/openclaw/config/skills/owner__repo-name
-sudo chown -R 1000:1000 /srv/openclaw/config/skills
-```
+# 1. Run onboard to configure auth and bind the gateway token as an env ref
+docker exec openclaw \
+  node dist/index.js onboard --non-interactive \
+  --accept-risk \
+  --mode local \
+  --auth-choice anthropic-api-key \
+  --secret-input-mode ref \
+  --gateway-auth token \
+  --gateway-token-ref-env OPENCLAW_GATEWAY_TOKEN \
+  --gateway-bind lan
 
-If the container is already running, restart it after cloning:
+# 2. Start the container back up (onboard stops the gateway)
+docker start openclaw
 
-```bash
+# 3. Set allowedOrigins for your domain
+docker exec openclaw \
+  node dist/index.js config set gateway.controlUi.allowedOrigins '["https://openclaw.<domain>"]'
+
+# 4. Restart to apply
 docker restart openclaw
 ```
 
-To verify loaded skills from inside the container:
-
-```bash
-docker exec -it openclaw openclaw skills list
-```
-
-If you want Exa web search available in OpenClaw skills, configure `EXA_API_KEY` and install an Exa skill as above.
-
-OpenRouter API smoke test (from `<hostname>`):
-
-```bash
-export OPENROUTER_API_KEY='sk-or-v1-REPLACE_ME'
-curl -sS https://openrouter.ai/api/v1/models \
-  -H "Authorization: Bearer ${OPENROUTER_API_KEY}" \
-  -H "Content-Type: application/json"
-```
-
-Expected: JSON response containing a `data` array of available models.
-
-Exa API smoke test (from `<hostname>`):
-
-```bash
-export EXA_API_KEY='exa-REPLACE_ME'
-curl -sS https://api.exa.ai/search \
-  -H "x-api-key: ${EXA_API_KEY}" \
-  -H "Content-Type: application/json" \
-  -d '{"query":"latest nvidia driver rocky linux","numResults":1}'
-```
-
-Expected: JSON response with `results` and non-zero `searchTime`.
-
 #### First login
 
-The OpenClaw UI requires a tokenized URL for the initial connection. Open a private browser window and navigate to:
+Navigate to:
 
 ```
-https://openclaw.<domain>/?gatewayUrl=wss://openclaw.<domain>&token=<OPENCLAW_GATEWAY_TOKEN>
+https://openclaw.<domain>
 ```
-
-Replace `<OPENCLAW_GATEWAY_TOKEN>` with the value you set in Portainer for this stack.
 
 If the UI shows `pairing required`, approve the device on `<hostname>`:
 
@@ -382,35 +370,20 @@ docker exec -it openclaw openclaw devices list
 docker exec -it openclaw openclaw devices approve <REQUEST_ID>
 ```
 
-Refresh and the dashboard will connect. Remove the tokenized URL from browser history after successful login — subsequent visits to `https://openclaw.<domain>` will connect automatically using the stored pairing.
+Refresh and the dashboard will connect.
 
-#### Rotate OpenClaw auth token
+For next steps — routing heartbeats to a local model, setting up agent identity, and configuring the heartbeat routine — see [`docs/OPENCLAW_AGENT_SETUP.md`](docs/OPENCLAW_AGENT_SETUP.md).
 
-The gateway auth token is stored in Portainer as `OPENCLAW_GATEWAY_TOKEN`. The `openclaw.json` config references it as `${OPENCLAW_GATEWAY_TOKEN}` — no secret is written to disk.
+#### Periodic maintenance — rotate gateway token
+
+The gateway auth token is stored in Portainer as `OPENCLAW_GATEWAY_TOKEN` and read at runtime via env ref — no secret is written to disk or config files.
 
 To rotate:
 
-1. Generate a new token:
-```bash
-   openssl rand -hex 32
-```
-2. In Portainer, open the **openclaw** stack → **Environment variables** → update `OPENCLAW_GATEWAY_TOKEN` with the new value.
+1. Generate a new token: `openssl rand -hex 32`
+2. In Portainer, open the **openclaw** stack → **Environment variables** → update `OPENCLAW_GATEWAY_TOKEN`.
 3. Click **Update the stack** to redeploy with the new token.
-
-Usability check (from any browser on LAN):
-
-1. Open a private window with:
-   - `https://openclaw.<domain>/?gatewayUrl=wss://openclaw.<domain>&token=<NEW_TOKEN>`
-2. If UI shows `pairing required`, approve the pending device on `<hostname>`:
-```bash
-docker exec -it openclaw openclaw devices list
-docker exec -it openclaw openclaw devices approve <REQUEST_ID>
-```
-
-3. Refresh the browser and confirm dashboard connects and chat session loads.
-4. Remove tokenized URLs from browser history after successful login.
-
-If the UI shows lockout (`too many failed authentication attempts`), wait 2-3 minutes or restart `openclaw` and retry once.
+4. Navigate to `https://openclaw.<domain>` and re-pair your device if prompted.
 
 ### openwebui
 
@@ -462,32 +435,58 @@ After deploying, open `https://cloud.<DOMAIN>` and log in with `NEXTCLOUD_ADMIN_
 
 ### openclaw-sandbox *(optional)*
 
-An isolated OpenClaw instance for experimenting with config, models, and tools without affecting the production `openclaw` stack. Uses only Anthropic and OpenAI — no Ollama, no shared volumes, no channel integrations.
-
-`restart: "no"` means the container stays down after a manual stop or host reboot — it will not auto-restart. Spin it up when you need it, stop it when you're done.
+An isolated OpenClaw instance for experimenting with config, models, and tools without affecting the production `openclaw` stack. Uses Anthropic, OpenAI, and Ollama (shared with the production stack) — no channel integrations, no shared workspace.
 
 `/srv/sandbox` is bind-mounted in full, mirroring the same pattern as the production `openclaw` stack. Config, workspace, logs, and memory all land there — fully separate from `/srv/openclaw`.
 
-Before first start, drop the config into place:
+#### Before deploying — generate a gateway token
+
+Generate a token and add it as `OPENCLAW_GATEWAY_TOKEN` in Portainer before clicking Deploy. Use a different value than the production `openclaw` stack:
 
 ```bash
-sudo cp /path/to/openclaw-sandbox.json /srv/sandbox/openclaw.json
-sudo chown 1000:1000 /srv/sandbox/openclaw.json
+openssl rand -hex 32
 ```
 
-The gateway token is read from the `OPENCLAW_GATEWAY_TOKEN` environment variable set in Portainer — no patching needed. Use a different token value than production so the two instances are independently secured.
+Deploy in Portainer and start the container.
 
-Then deploy in Portainer and start the container.
+#### Post-deploy setup (run once after first deploy)
+
+The container will already be running. Run these steps on `<hostname>`:
+
+```bash
+# 1. Run onboard to configure auth and bind the gateway token as an env ref
+docker exec openclaw-sandbox \
+  node dist/index.js onboard --non-interactive \
+  --accept-risk \
+  --mode local \
+  --auth-choice anthropic-api-key \
+  --secret-input-mode ref \
+  --gateway-auth token \
+  --gateway-token-ref-env OPENCLAW_GATEWAY_TOKEN \
+  --gateway-bind lan
+
+# 2. Start the container back up (onboard stops the gateway)
+docker start openclaw-sandbox
+
+# 3. Set allowedOrigins for your domain
+docker exec openclaw-sandbox \
+  node dist/index.js config set gateway.controlUi.allowedOrigins '["https://sandbox.<domain>"]'
+
+# 4. Set heartbeat model to use local Ollama (saves API costs)
+docker exec openclaw-sandbox \
+  node dist/index.js config set agents.defaults.heartbeat '{"every":"30m","model":"ollama/mistral:7b-instruct"}'
+
+# 5. Restart to apply
+docker restart openclaw-sandbox
+```
 
 #### First login
 
-Open a private browser window and navigate to:
+Navigate to:
 
 ```
-https://sandbox.<domain>/?gatewayUrl=wss://sandbox.<domain>&token=<OPENCLAW_GATEWAY_TOKEN>
+https://sandbox.<domain>
 ```
-
-Replace `<OPENCLAW_GATEWAY_TOKEN>` with the value you set in Portainer for the sandbox stack — use a different token than production.
 
 If the UI shows `pairing required`, approve the device on `<hostname>`:
 
@@ -496,7 +495,7 @@ docker exec -it openclaw-sandbox openclaw devices list
 docker exec -it openclaw-sandbox openclaw devices approve <REQUEST_ID>
 ```
 
-Remove the tokenized URL from browser history after successful login.
+Refresh and the dashboard will connect.
 
 > **Note:** `bootstrap-server.sh` creates `/srv/sandbox` and sets ownership automatically. No manual directory creation needed.
 
