@@ -12,6 +12,8 @@ services:
       NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER}
       NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
       NEXTCLOUD_TRUSTED_DOMAINS: cloud.${DOMAIN}
+      OVERWRITEPROTOCOL: https
+      OVERWRITEHOST: cloud.${DOMAIN}
       PHP_MEMORY_LIMIT: ${NEXTCLOUD_PHP_MEMORY_LIMIT:-512M}
       PHP_UPLOAD_LIMIT: ${NEXTCLOUD_PHP_UPLOAD_LIMIT:-512M}
     volumes:
@@ -39,6 +41,7 @@ services:
       JWT_ENABLED: "true"
       JWT_SECRET: ${ONLYOFFICE_JWT_SECRET}
       NODE_TLS_REJECT_UNAUTHORIZED: "0"
+      USE_UNAUTHORIZED_STORAGE: "true"
     volumes:
       - /srv/onlyoffice/data:/var/www/onlyoffice/Data
       - /srv/onlyoffice/logs:/var/log/onlyoffice
