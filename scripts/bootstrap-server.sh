@@ -6,15 +6,13 @@ CERT_BASENAME="${CERT_BASENAME:-$DOMAIN}"
 CERT_DAYS="${CERT_DAYS:-3650}"
 OPENCLAW_UID="${OPENCLAW_UID:-1000}"
 OPENCLAW_GID="${OPENCLAW_GID:-1000}"
-WORKSPACE_SUBDIR="${WORKSPACE_SUBDIR:-development}"
 FORCE_CERTS="${FORCE_CERTS:-0}"
 FORCE_DYNAMIC="${FORCE_DYNAMIC:-0}"
-
-DATA_DIR="${DATA_DIR:-/home/docker-data}"
+SANDBOX_ROOT="${SANDBOX_ROOT:-/srv/sandbox}"
 OPENCLAW_ROOT="/srv/openclaw"
 CERT_DIR="/srv/certs"
 TRAEFIK_DIR="/srv/traefik"
-BACKUP_DIR="/srv/backups/volumes"
+BACKUP_DIR="/srv/backups"
 DYNAMIC_FILE="${TRAEFIK_DIR}/dynamic.yml"
 CERT_FILE="${CERT_DIR}/${CERT_BASENAME}.crt"
 KEY_FILE="${CERT_DIR}/${CERT_BASENAME}.key"
@@ -30,43 +28,16 @@ if ! command -v openssl >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "==> Setting up Docker data directories on large filesystem (${DATA_DIR})"
-# On most default Linux installs / is small (70-100G) while /home is large.
-# We create the actual data directories under DATA_DIR and symlink them into
-# /var/lib/docker/volumes so Docker volume mounts land on the large filesystem.
-DOCKER_VOLUMES="/var/lib/docker/volumes"
-mkdir -p "${DATA_DIR}"
-mkdir -p "${DOCKER_VOLUMES}"
-for service in ollama postgres redis qdrant openwebui; do
-  target="${DATA_DIR}/${service}"
-  link="${DOCKER_VOLUMES}/${service}-data"
-  if [[ ! -d "${target}" ]]; then
-    mkdir -p "${target}"
-    echo "  Created ${target}"
-  else
-    echo "  ${target} already exists, skipping"
-  fi
-  if [[ ! -L "${link}" && ! -e "${link}" ]]; then
-    ln -s "${target}" "${link}"
-    echo "  Symlinked ${link} -> ${target}"
-  else
-    echo "  ${link} already exists, skipping"
-  fi
-done
-
-SANDBOX_ROOT="${SANDBOX_ROOT:-/srv/sandbox}"
-
 echo "==> Creating host directories"
 mkdir -p \
-  "${OPENCLAW_ROOT}/config" \
-  "${OPENCLAW_ROOT}/skills" \
-  "${OPENCLAW_ROOT}/workspace" \
-  "${OPENCLAW_ROOT}/workspace/${WORKSPACE_SUBDIR}" \
-  "${OPENCLAW_ROOT}/logs" \
+  "${OPENCLAW_ROOT}" \
   "${SANDBOX_ROOT}" \
   "${CERT_DIR}" \
   "${TRAEFIK_DIR}" \
   "${BACKUP_DIR}"
+
+# OpenClaw populates its own subdirectory structure on first boot.
+# SANDBOX_ROOT is intentionally left empty for the same reason.
 
 echo "==> Setting ownership for OpenClaw host paths (${OPENCLAW_UID}:${OPENCLAW_GID})"
 chown -R "${OPENCLAW_UID}:${OPENCLAW_GID}" "${OPENCLAW_ROOT}"
@@ -104,11 +75,11 @@ chmod 644 "${DYNAMIC_FILE}"
 
 echo
 echo "Bootstrap complete."
-echo "Domain: ${DOMAIN}"
-echo "Certificate: ${CERT_FILE}"
-echo "Traefik dynamic config: ${DYNAMIC_FILE}"
-echo "Workspace code path: ${OPENCLAW_ROOT}/workspace/${WORKSPACE_SUBDIR}"
-echo "Sandbox path: ${SANDBOX_ROOT}"
+echo "Domain:              ${DOMAIN}"
+echo "Certificate:         ${CERT_FILE}"
+echo "Traefik dynamic:     ${DYNAMIC_FILE}"
+echo "OpenClaw path:       ${OPENCLAW_ROOT}"
+echo "Sandbox path:        ${SANDBOX_ROOT}"
+echo "Backup path:         ${BACKUP_DIR}"
 echo
-echo "Docker data path: ${DATA_DIR} (ollama, postgres, redis, qdrant, openwebui)"
 echo "Next step: in Portainer, pull and redeploy the infra stack."

@@ -175,10 +175,9 @@ sudo DOMAIN=<domain> CERT_BASENAME=<domain> /tmp/bootstrap-server.sh
 | `CERT_DAYS` | `3650` | Certificate validity in days (~10 years) |
 | `OPENCLAW_UID` | `1000` | UID for OpenClaw bind-mount ownership |
 | `OPENCLAW_GID` | `1000` | GID for OpenClaw bind-mount ownership |
-| `WORKSPACE_SUBDIR` | `development` | Subfolder under `/srv/openclaw/workspace/` |
 | `FORCE_CERTS` | `0` | Set to `1` to regenerate cert/key even if they exist |
 | `FORCE_DYNAMIC` | `0` | Set to `1` to overwrite `/srv/traefik/dynamic.yml` |
-| `SANDBOX_ROOT` | `/srv/sandbox` | Root path for sandbox bind-mount dirs (config only) |
+| `SANDBOX_ROOT` | `/srv/sandbox` | Root path for the sandbox bind-mount (left empty — OpenClaw populates on first boot) |
 
 ---
 
@@ -383,7 +382,7 @@ To rotate:
 1. Generate a new token: `openssl rand -hex 32`
 2. In Portainer, open the **openclaw** stack → **Environment variables** → update `OPENCLAW_GATEWAY_TOKEN`.
 3. Click **Update the stack** to redeploy with the new token.
-4. Navigate to `https://openclaw.<domain>` and re-pair your device if prompted.
+4. Navigate to `https://openclaw.<domain>` and re-pair your device.
 
 ### openwebui
 
@@ -435,9 +434,7 @@ After deploying, open `https://cloud.<DOMAIN>` and log in with `NEXTCLOUD_ADMIN_
 
 ### openclaw-sandbox *(optional)*
 
-An isolated OpenClaw instance for experimenting with config, models, and tools without affecting the production `openclaw` stack. Uses Anthropic, OpenAI, and Ollama (shared with the production stack) — no channel integrations, no shared workspace.
-
-`/srv/sandbox` is bind-mounted in full, mirroring the same pattern as the production `openclaw` stack. Config, workspace, logs, and memory all land there — fully separate from `/srv/openclaw`.
+An isolated OpenClaw instance for experimenting with config, models, and tools without affecting the production `openclaw` stack. Uses Anthropic, OpenAI, and Ollama (shared with the production stack) — no channel integrations. Config, workspace, logs, and memory are fully isolated at `/srv/sandbox`, separate from `/srv/openclaw`.
 
 #### Before deploying — generate a gateway token
 
@@ -497,6 +494,8 @@ docker exec -it openclaw-sandbox openclaw devices approve <REQUEST_ID>
 
 Refresh and the dashboard will connect.
 
+For next steps — heartbeat model, agent identity, and workspace files — see [`docs/OPENCLAW_AGENT_SETUP.md`](docs/OPENCLAW_AGENT_SETUP.md).
+
 > **Note:** `bootstrap-server.sh` creates `/srv/sandbox` and sets ownership automatically. No manual directory creation needed.
 
 ---
@@ -535,21 +534,13 @@ The RTX 3070 has 8 GB VRAM. Running Ollama and the Quai miner simultaneously wil
 
 ## 11) Backups
 
-### One-liner volume backup
+Backups are staged at `/srv/backups/` (created by `bootstrap-server.sh`). The backup script handles both Docker named volumes and `/srv` bind mounts in one shot:
 
 ```bash
-mkdir -p /srv/backups/volumes
-docker run --rm \
-  -v grafana-data:/v \
-  -v /srv/backups/volumes:/b \
-  alpine sh -c "cd /v && tar czf /b/grafana-data-$(date +%F).tgz ."
+sudo bash scripts/backup.sh
 ```
 
-Key volumes to back up: `grafana-data`, `prometheus-data`, `postgres-data`, `qdrant-data`, `ollama-data`, `openclaw-config`, `portainer_data`.
-
-### Automate
-
-Run nightly via systemd timer or cron, and sync `/srv/backups` to NAS or cloud storage.
+Each run creates a timestamped directory under `/srv/backups/`. For full backup and restore procedures, automation, and restore order after a bare metal rebuild, see [`docs/BACKUP_RESTORE.md`](docs/BACKUP_RESTORE.md).
 
 ---
 
@@ -602,7 +593,6 @@ A single wildcard A record for `*.<domain>` pointing to `<server-ip>` is the cle
 - **Ollama OOM** — pull a smaller model or stop the miner first.
 - **Traefik routes not working** — make sure the service has `traefik.enable: "true"` label and is on the `proxy` network.
 - **Mining performance drops** — verify `nvidia-smi` power limit is still applied and persistence mode is on.
-- **Wi-Fi not working (Rocky Linux)** — see [`docs/ROCKY10_WIFI_SETUP.md`](docs/ROCKY10_WIFI_SETUP.md) for the full fix (missing `wireless-regdb` + `NetworkManager-wifi` packages). This issue prompted the migration to Debian.
 
 ---
 
@@ -628,6 +618,7 @@ images/
   rigel/Dockerfile               # Custom Rigel miner image
 scripts/
   bootstrap-server.sh            # Create /srv paths, certs, and Traefik dynamic.yml
+  backup.sh                      # Back up Docker volumes and /srv bind mounts to /srv/backups/
   install-nvidia-drivers.sh      # NVIDIA driver install + GPU tuning
   install-docker-portainer.sh    # Docker CE + NVIDIA Container Toolkit + Portainer
   install-node.sh                # Node.js via fnm (optional, dev-only)
@@ -635,6 +626,6 @@ docs/
   ENV_VARS_REFERENCE.md          # Environment variables per stack
   MONITORING_SETUP.md            # Grafana dashboard import + variable fix walkthrough
   QUAI_WALLET_SETUP.md           # Pelagus wallet + mining address guide
-  ROCKY10_WIFI_SETUP.md          # Wi-Fi fix for Rocky Linux 10.1 minimal install
-  OPENCLAW_AGENT_ROADMAP.md      # Agent development roadmap (bug reporter, health monitor, etc.)
+  OPENCLAW_AGENT_SETUP.md        # Post-onboard agent setup (heartbeats, identity, workspace files)
+  BACKUP_RESTORE.md              # Backup and restore procedures for all stacks
 ```
