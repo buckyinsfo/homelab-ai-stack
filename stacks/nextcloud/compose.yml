@@ -19,6 +19,8 @@ services:
       - /srv/nextcloud/data:/var/www/html
       - /srv/nextcloud/apps:/var/www/html/custom_apps
       - /srv/nextcloud/config:/var/www/html/config
+    extra_hosts:
+      - "office.camp-fai:192.168.1.214"
     networks:
       - proxy
     labels:
