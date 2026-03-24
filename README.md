@@ -35,7 +35,7 @@ These can be the same value if you're routing by hostname rather than a separate
 | **openclaw** | Self-hosted AI assistant (Ollama + Anthropic + OpenAI) | `stacks/openclaw/compose.yml` | No |
 | **openwebui** | Browser chat UI for Ollama | `stacks/openwebui/compose.yml` | No |
 | **adminer** | Web-based Postgres (and multi-DB) admin UI | `stacks/adminer/compose.yml` | Yes |
-| **nextcloud** | Self-hosted file storage and sync | `stacks/nextcloud/compose.yml` | Yes |
+| **nextcloud** | Self-hosted file storage, sync, and document editing (ONLYOFFICE included) | `stacks/nextcloud/compose.yml` | Yes |
 | **quai-miner** | Rigel GPU miner (Quai / KawPow) | `stacks/quai-miner/compose.yml` | Yes |
 | **openclaw-sandbox** | Ephemeral OpenClaw for config experimentation | `stacks/openclaw-sandbox/compose.yml` | Yes |
 
@@ -264,6 +264,7 @@ Once deployed, all services are available at:
 | Open WebUI | `https://ai.<domain>` |
 | Adminer | `https://adminer.<domain>` |
 | Nextcloud | `https://cloud.<domain>` |
+| ONLYOFFICE | `https://office.<domain>` |
 
 > For `.local` hostnames to resolve on your LAN, see [Local DNS Setup](#local-dns-setup) below.
 
@@ -413,18 +414,19 @@ When entering in Portainer, escape every `$` as `$$`.
 
 ### nextcloud *(optional)*
 
-Self-hosted file sync and storage. Uses the shared Postgres and Redis instances already running in the stack, and routes through Traefik at `https://cloud.<DOMAIN>`.
+Self-hosted file sync, storage, and browser-based document editing. Includes ONLYOFFICE document server in the same compose stack. Uses the shared Postgres and Redis instances, and routes through Traefik at `https://cloud.<DOMAIN>` and `https://office.<DOMAIN>`.
 
-Before deploying, create the host directories and the Nextcloud database:
+Before deploying, create the Nextcloud database (host directories are created by `bootstrap-server.sh`):
 
 ```bash
-sudo mkdir -p /srv/nextcloud/{data,apps,config}
 docker exec -it postgres psql -U <POSTGRES_USER> -c "CREATE DATABASE nextcloud;"
 ```
 
 Then deploy the stack in Portainer. On first boot, Nextcloud runs its installer using the env vars you set — no browser-based setup wizard needed.
 
 After deploying, open `https://cloud.<DOMAIN>` and log in with `NEXTCLOUD_ADMIN_USER` / `NEXTCLOUD_ADMIN_PASSWORD`.
+
+To connect ONLYOFFICE, follow the steps in [`docs/ONLYOFFICE_SETUP.md`](docs/ONLYOFFICE_SETUP.md).
 
 > **Cron jobs:** Nextcloud background jobs default to AJAX mode (runs on page load). For a proper setup, switch to Cron mode in Settings → Basic Settings → Background jobs, then add a host-level cron entry:
 > ```bash

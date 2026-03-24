@@ -28,13 +28,18 @@ if ! command -v openssl >/dev/null 2>&1; then
   exit 1
 fi
 
+ONLYOFFICE_ROOT="/srv/onlyoffice"
+
 echo "==> Creating host directories"
 mkdir -p \
   "${OPENCLAW_ROOT}" \
   "${SANDBOX_ROOT}" \
   "${CERT_DIR}" \
   "${TRAEFIK_DIR}" \
-  "${BACKUP_DIR}"
+  "${BACKUP_DIR}" \
+  "${ONLYOFFICE_ROOT}/data" \
+  "${ONLYOFFICE_ROOT}/logs" \
+  "${ONLYOFFICE_ROOT}/lib"
 
 # OpenClaw populates its own subdirectory structure on first boot.
 # SANDBOX_ROOT is intentionally left empty for the same reason.
@@ -42,6 +47,9 @@ mkdir -p \
 echo "==> Setting ownership for OpenClaw host paths (${OPENCLAW_UID}:${OPENCLAW_GID})"
 chown -R "${OPENCLAW_UID}:${OPENCLAW_GID}" "${OPENCLAW_ROOT}"
 chown -R "${OPENCLAW_UID}:${OPENCLAW_GID}" "${SANDBOX_ROOT}"
+
+echo "==> Setting ownership for ONLYOFFICE host paths"
+chown -R 1000:1000 "${ONLYOFFICE_ROOT}"
 
 if [[ "${FORCE_CERTS}" == "1" || ! -s "${CERT_FILE}" || ! -s "${KEY_FILE}" ]]; then
   echo "==> Generating self-signed certificate: ${CERT_FILE}"
@@ -81,5 +89,6 @@ echo "Traefik dynamic:     ${DYNAMIC_FILE}"
 echo "OpenClaw path:       ${OPENCLAW_ROOT}"
 echo "Sandbox path:        ${SANDBOX_ROOT}"
 echo "Backup path:         ${BACKUP_DIR}"
+echo "ONLYOFFICE path:     ${ONLYOFFICE_ROOT}"
 echo
 echo "Next step: in Portainer, pull and redeploy the infra stack."

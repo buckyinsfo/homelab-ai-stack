@@ -159,16 +159,18 @@ No environment variables required.
 | `NEXTCLOUD_ADMIN_PASSWORD` | ✅ Yes | *(strong secret)* | Admin password set on first boot. Generate with `openssl rand -hex 20`. |
 | `NEXTCLOUD_PHP_MEMORY_LIMIT` | ⚠️ Optional | `512M` | PHP memory limit. Increase for large file operations or many users. |
 | `NEXTCLOUD_PHP_UPLOAD_LIMIT` | ⚠️ Optional | `512M` | Maximum upload size. Match or exceed your largest expected file transfer. |
+| `ONLYOFFICE_JWT_SECRET` | ✅ Yes (if using ONLYOFFICE) | *(strong secret)* | Shared JWT secret between ONLYOFFICE and the Nextcloud plugin. Generate with `openssl rand -hex 32`. Must match what you enter in Nextcloud → Settings → ONLYOFFICE. |
 
-> **Pre-deploy steps:** Create host directories and the Nextcloud database before deploying:
+> **Pre-deploy steps:** Create the Nextcloud database before deploying (host directories are created by `bootstrap-server.sh`):
 > ```bash
-> sudo mkdir -p /srv/nextcloud/{data,apps,config}
 > docker exec -it postgres psql -U <POSTGRES_USER> -c "CREATE DATABASE nextcloud;"
 > ```
 >
 > Redis is used automatically for session caching and locking — no Redis password needed since the stack uses unauthenticated Redis.
 >
 > After deploying, open `https://cloud.<DOMAIN>` and log in with the admin credentials above.
+>
+> **ONLYOFFICE post-deploy:** After deploying the stack, follow the steps in [`docs/ONLYOFFICE_SETUP.md`](ONLYOFFICE_SETUP.md) to connect the ONLYOFFICE plugin to the document server.
 >
 > **Agent accounts:** Three service accounts (eamon, maeve, ronan) are created in Nextcloud for OpenClaw agents. They share the password stored in `NEXTCLOUD_AGENTS_PASSWORD` (set in the openclaw stack environment). Each has a dedicated folder (`/Eamon/`, `/Maeve/`, `/Ronan/`) with read/write access.
 
@@ -259,6 +261,7 @@ NEXTCLOUD_ADMIN_USER=admin
 NEXTCLOUD_ADMIN_PASSWORD=
 NEXTCLOUD_PHP_MEMORY_LIMIT=512M
 NEXTCLOUD_PHP_UPLOAD_LIMIT=512M
+ONLYOFFICE_JWT_SECRET=   ← generate with: openssl rand -hex 32
 
 # === openclaw-sandbox (optional) ===
 DOMAIN=
