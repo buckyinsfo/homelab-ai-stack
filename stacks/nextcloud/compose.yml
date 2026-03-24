@@ -35,6 +35,7 @@ services:
     image: onlyoffice/documentserver:8.0
     container_name: onlyoffice
     restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c", "update-ca-certificates && /app/ds/run-document-server.sh"]
     extra_hosts:
       - "cloud.camp-fai:192.168.1.214"
     environment:
@@ -46,6 +47,7 @@ services:
       - /srv/onlyoffice/data:/var/www/onlyoffice/Data
       - /srv/onlyoffice/logs:/var/log/onlyoffice
       - /srv/onlyoffice/lib:/var/lib/onlyoffice
+      - /srv/certs/camp-fai.crt:/usr/local/share/ca-certificates/camp-fai.crt:ro
     networks:
       - proxy
     labels:
