@@ -28,6 +28,26 @@ services:
       traefik.http.routers.nextcloud.tls: "true"
       traefik.http.services.nextcloud.loadbalancer.server.port: "80"
 
+  onlyoffice:
+    image: onlyoffice/documentserver:8.0
+    container_name: onlyoffice
+    restart: unless-stopped
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: ${ONLYOFFICE_JWT_SECRET}
+    volumes:
+      - /srv/onlyoffice/data:/var/www/onlyoffice/Data
+      - /srv/onlyoffice/logs:/var/log/onlyoffice
+      - /srv/onlyoffice/lib:/var/lib/onlyoffice
+    networks:
+      - proxy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.onlyoffice.rule: "Host(`office.${DOMAIN}`)"
+      traefik.http.routers.onlyoffice.entrypoints: "websecure"
+      traefik.http.routers.onlyoffice.tls: "true"
+      traefik.http.services.onlyoffice.loadbalancer.server.port: "80"
+
 networks:
   proxy:
     external: true
