@@ -21,7 +21,8 @@ Thumbs.db
 *.tar.gz
 *.tgz
 
-# Misc
+# Working artifacts / local reference files
+ok2delete/
 *.ok2delete
 *.claude
 *.codex

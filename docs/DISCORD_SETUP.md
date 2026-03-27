@@ -1,32 +1,21 @@
 # Discord Multi-Bot Setup for OpenClaw
 
-OpenClaw uses **one Discord bot per agent**. Each bot has its own token,
+OpenClaw supports **one Discord bot per agent**. Each bot has its own token,
 its own account ID in the config, and its own binding. Bots can share
 channels — agents respond when mentioned (`@BotName`).
-
-## Agents and Their Bots
-
-| Agent | Bot Name (suggestion) | Account ID | Portainer Env Var |
-|-------|----------------------|------------|-------------------|
-| Noah (main) | `Noah` | `default` | `DISCORD_BOT_TOKEN` |
-| Dan | `Dan` | `dan` | `DISCORD_BOT_TOKEN_DAN` |
-| Declan | `Declan` | `declan` | `DISCORD_BOT_TOKEN_DECLAN` |
-| Eamon | `Eamon` | `eamon` | `DISCORD_BOT_TOKEN_EAMON` |
-| Maeve | `Maeve` | `maeve` | `DISCORD_BOT_TOKEN_MAEVE` |
-| Ronan | `Ronan` | `ronan` | `DISCORD_BOT_TOKEN_RONAN` |
 
 ---
 
 ## 1. Create a Bot for Each Agent
 
-Repeat these steps once per agent (6 total).
+Repeat these steps once per agent you want to connect to Discord.
 
 1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
-2. Click **New Application** → name it after the agent (e.g. `Declan`)
+2. Click **New Application** → name it after the agent
 3. In the left sidebar → **Bot**
 4. Under **Privileged Gateway Intents**, enable **Message Content Intent**
 5. Under **TOKEN** → click **Reset Token** → copy the token
-6. Keep each token somewhere safe — you'll add them to Portainer shortly
+6. Keep each token somewhere safe — you'll need them in Step 3
 
 ---
 
@@ -43,46 +32,71 @@ For each bot:
    - `Use Slash Commands`
 4. Copy the generated URL → paste in browser → select your server → **Authorize**
 
-Repeat for all 6 bots. All bots can be in the same server and same channels.
+All bots can be in the same server and same channels.
 
 ---
 
-## 3. Add Tokens to Portainer
+## 3. Add Tokens to Your Environment
 
-1. Open Portainer → **Stacks** → **openclaw** → **Editor**
-2. Scroll to **Environment variables**
-3. Add each token (see table above):
-   - `DISCORD_BOT_TOKEN` — Noah's token (existing)
-   - `DISCORD_BOT_TOKEN_DAN`
-   - `DISCORD_BOT_TOKEN_DECLAN`
-   - `DISCORD_BOT_TOKEN_EAMON`
-   - `DISCORD_BOT_TOKEN_MAEVE`
-   - `DISCORD_BOT_TOKEN_RONAN`
-4. Click **Update** → restart the stack
+OpenClaw reads bot tokens from environment variables. Each agent needs its own
+variable. For example, if your config uses `DISCORD_BOT_TOKEN_AGENTNAME`, set:
+
+```
+DISCORD_BOT_TOKEN          # for your primary/default agent
+DISCORD_BOT_TOKEN_AGENT2
+DISCORD_BOT_TOKEN_AGENT3
+# ... one per agent
+```
+
+How you set these depends on your deployment:
+- **Docker Compose** — add to your `environment:` block or a `.env` file
+- **Portainer** — Stacks → your stack → Environment variables
+- **Direct** — export them in your shell before starting OpenClaw
+
+Never commit tokens to source control.
 
 ---
 
-## 4. Add Channel IDs to the Config
+## 4. Reference Tokens in openclaw.json
 
-Once you've created Discord channels for the agents that need them,
-add the channel IDs to the relevant account block in `openclaw.json`:
+In your `openclaw.json`, reference each variable using `${VAR_NAME}`:
 
 ```json
-"eamon": {
-  "token": "${DISCORD_BOT_TOKEN_EAMON}",
+"accounts": {
+  "default": {
+    "type": "discord",
+    "token": "${DISCORD_BOT_TOKEN}"
+  },
+  "agent2": {
+    "type": "discord",
+    "token": "${DISCORD_BOT_TOKEN_AGENT2}"
+  }
+}
+```
+
+---
+
+## 5. Add Channel IDs to the Config (Optional)
+
+If you want to restrict an agent to specific channels, add a `channels` block
+to the account's guild entry in `openclaw.json`:
+
+```json
+"agent2": {
+  "token": "${DISCORD_BOT_TOKEN_AGENT2}",
   "guilds": {
-    "1482519507871334607": {
+    "YOUR_GUILD_ID": {
       "requireMention": true,
-      "users": ["298234100878278668"],
+      "users": ["YOUR_USER_ID"],
       "channels": {
-        "YOUR_CHANNEL_ID_HERE": { "allow": true }
+        "YOUR_CHANNEL_ID": { "allow": true }
       }
     }
   }
 }
 ```
 
-To get a channel ID: right-click the channel in Discord → **Copy Channel ID**
+To find IDs: right-click a server/channel/user in Discord → **Copy ID**
 (requires Developer Mode: User Settings → Advanced → Developer Mode).
 
 Accounts without a `channels` block will accept messages from any allowed
@@ -90,29 +104,32 @@ channel in the guild when the bot is mentioned.
 
 ---
 
-## 5. How Mention Routing Works
+## 6. How Mention Routing Works
 
-- **Noah** (`default`) — `requireMention: false` on his assigned channel, responds freely
-- **All other agents** — `requireMention: true`, only respond when mentioned by name
+- **Default agent** — can be configured with `requireMention: false` to respond
+  freely in its assigned channel
+- **All other agents** — set `requireMention: true` so they only respond when
+  explicitly mentioned
 
 In a shared channel, mention the bot you want:
-- `@Declan can you review this PR?`
-- `@Eamon research competitors for X`
-- `@Maeve what's the status on Y?`
+```
+@Agent2 can you review this?
+@Agent3 research competitors for X
+```
 
 Each bot only sees messages directed at it (Discord delivers per-bot).
 
 ---
 
-## 6. Verify
+## 7. Verify
 
-After restarting:
+After starting OpenClaw:
 
 ```bash
 docker logs openclaw --tail 100 | grep -i discord
 ```
 
-You should see 6 separate Discord bot connections, one per agent.
+You should see a separate Discord bot connection for each configured agent.
 
 ```bash
 # Check all agents and their bindings
@@ -124,19 +141,19 @@ docker exec openclaw openclaw agents list --bindings
 ## Troubleshooting
 
 **Bot doesn't respond:**
-- Confirm token is correct in Portainer (no extra spaces)
+- Confirm the token is correct in your environment (no extra spaces)
 - Confirm Message Content Intent is enabled in the Developer Portal
 - Confirm the bot is invited to the server
 - Check that the channel ID is in the `channels` allowlist (if set)
-- Restart the stack and check logs
+- Restart OpenClaw and check logs
 
 **"Missing permissions" error:**
 - Regenerate the invite URL and re-authorize with correct permissions
 
 **Token invalid:**
-- Regenerate in the Developer Portal → update in Portainer → restart
+- Regenerate in the Developer Portal → update your environment → restart
 
-**All messages going to Noah only:**
-- The old single-bot config routed everything to `default`
-- Verify you've set `requireMention: true` on the other agents
+**All messages going to the default agent only:**
+- The single-bot config routes everything to `default`
+- Verify `requireMention: true` is set on the other agents
 - Verify each account has its own unique token
