@@ -2,7 +2,6 @@ services:
   openclaw:
     build:
       context: ../../images/openclaw
-    image: openclaw:2026-03-30
     container_name: openclaw
     restart: unless-stopped
 
