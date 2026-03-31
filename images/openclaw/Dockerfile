@@ -32,4 +32,22 @@ RUN set -eux; \
 
 RUN chown -R node:node /opt/bun
 
+# Install fnm and pnpm
+ENV FNM_DIR=/opt/fnm
+ENV PATH="/opt/fnm:/root/.local/share/fnm:${PATH}"
+
+RUN set -eux; \
+    curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir /opt/fnm --skip-shell; \
+    ln -sf /opt/fnm/fnm /usr/local/bin/fnm; \
+    fnm install --lts; \
+    FNM_NODE_PATH=$(ls -d /opt/fnm/node-versions/*/installation/bin | tail -1); \
+    ln -sf ${FNM_NODE_PATH}/node /usr/local/bin/node; \
+    ln -sf ${FNM_NODE_PATH}/npm /usr/local/bin/npm; \
+    ln -sf ${FNM_NODE_PATH}/corepack /usr/local/bin/corepack; \
+    corepack enable; \
+    corepack prepare pnpm@latest --activate; \
+    pnpm --version
+
+RUN chown -R node:node /opt/fnm
+
 USER node
