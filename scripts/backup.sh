@@ -66,7 +66,7 @@ echo
 # /srv bind mounts
 # ---------------------------------------------------------------------------
 echo "==> Backing up /srv bind mounts"
-for path in openclaw sandbox certs traefik nextcloud; do
+for path in openclaw sandbox hermes certs traefik nextcloud onlyoffice; do
   src="/srv/${path}"
   dest="${BACKUP_DIR}/srv/${path}.tgz"
   if [[ -d "${src}" ]]; then
