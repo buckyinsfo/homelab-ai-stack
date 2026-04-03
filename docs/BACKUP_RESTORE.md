@@ -1,111 +1,137 @@
-# Backup and Restore
+# Backup & Restore
 
-Backups are staged locally at `/srv/backups/<timestamp>/` and can be synced to NAS or cloud storage from there. Each backup run creates a timestamped directory containing two subdirectories:
+## Overview
 
-- `volumes/` — Docker named volumes (tarballs) and a PostgreSQL SQL dump
-- `srv/` — `/srv` bind mounts (tarballs)
+Backups run on a daily cron schedule on the server via root cron.
+Script: `scripts/backup.sh`
+Log: `<BACKUP_ROOT>/backup.log` (see `backup.sh` for `BACKUP_ROOT` value)
+
+Each backup is a timestamped directory:
+
+```
+<BACKUP_ROOT>/
+  YYYY-MM-DD-HHMMSS/
+    volumes/
+      <volume-name>.tgz     # one per named Docker volume
+      postgres_dumpall.sql  # PostgreSQL full dump
+    srv/
+      <path>.tgz            # one per /srv bind mount
+```
+
+Retention: the last N backups are kept (see `RETAIN_COUNT` in `backup.sh`).
+Older backups are auto-purged on each run.
 
 ---
 
-## Running a backup
+## Checking Backups
 
 ```bash
-sudo bash scripts/backup.sh
-```
+# List available backups
+ls -lah <BACKUP_ROOT>/
 
-Output lands in `/srv/backups/<YYYY-MM-DD-HHMMSS>/`. The script skips any volume or path that doesn't exist, so it's safe to run even if some stacks are not deployed.
+# Check last backup log
+tail -50 <BACKUP_ROOT>/backup.log
+
+# Check size of a specific backup
+du -sh <BACKUP_ROOT>/YYYY-MM-DD-HHMMSS/
+```
 
 ---
 
-## Automating backups
+## Restore Procedures
 
-Add a cron entry to run nightly:
+### Prerequisites
+
+Set a variable pointing to the backup you want to restore from:
 
 ```bash
-sudo crontab -e
+BACKUP_DIR="<BACKUP_ROOT>/YYYY-MM-DD-HHMMSS"
 ```
-
-```
-0 2 * * * bash /path/to/homelab-ai-stack/scripts/backup.sh >> /srv/backups/backup.log 2>&1
-```
-
-To sync to a remote location after each run, append an `rsync` or `rclone` command at the end of the cron entry or add it to `scripts/backup.sh` directly.
 
 ---
 
-## Restore procedures
+### Docker Named Volume
+
+```bash
+# Stop any containers using the volume first
+docker stop <container-name>
+
+# Restore the volume (wipes existing contents)
+docker run --rm \
+  -v <volume-name>:/v \
+  -v "${BACKUP_DIR}/volumes:/backup" \
+  alpine sh -c "rm -rf /v/* && tar xzf /backup/<volume-name>.tgz -C /v"
+
+# Restart the container
+docker start <container-name>
+```
+
+---
 
 ### PostgreSQL
 
-```bash
-# Stop any services that use the database
-docker stop openclaw nextcloud
-
-# Restore from SQL dump
-docker exec -i postgres psql -U postgres < /srv/backups/<timestamp>/volumes/postgres_dumpall.sql
-
-# Restart services
-docker start openclaw nextcloud
-```
-
-### Docker named volumes
+The backup uses `pg_dumpall` so all databases and roles are included in a
+single SQL file. The superuser is read dynamically from the running container
+at backup time — no hardcoded credentials in the script.
 
 ```bash
-# Example: restore grafana-data
-docker run --rm \
-  -v monitoring_grafana-data:/v \
-  -i alpine sh -c "tar xzf - -C /v" \
-  < /srv/backups/<timestamp>/volumes/monitoring_grafana-data.tgz
+BACKUP_DIR="<BACKUP_ROOT>/YYYY-MM-DD-HHMMSS"
+PG_USER=$(docker exec postgres printenv POSTGRES_USER)
+
+docker exec -i postgres psql -U "${PG_USER}" -f - < "${BACKUP_DIR}/volumes/postgres_dumpall.sql"
 ```
 
-Repeat for each volume. Stop the relevant container before restoring and restart after.
-
-### /srv bind mounts
-
-```bash
-# Example: restore /srv/openclaw
-docker stop openclaw
-sudo tar xzf /srv/backups/<timestamp>/srv/openclaw.tgz -C /srv
-sudo chown -R 1000:1000 /srv/openclaw
-docker start openclaw
-```
-
-Repeat for each path (`sandbox`, `certs`, `traefik`, `nextcloud`). Note:
-
-- After restoring `/srv/certs` and `/srv/traefik`, restart the `infra` stack in Portainer to reload the certs and dynamic config.
-- After restoring `/srv/sandbox`, run the post-deploy onboard steps again if the `openclaw.json` config was reset. See the README openclaw-sandbox section.
-
-### Restore order (full rebuild)
-
-If restoring from scratch after a bare metal reinstall, restore in this order:
-
-1. Run `scripts/bootstrap-server.sh` to recreate `/srv` paths
-2. Restore `/srv/certs` and `/srv/traefik`
-3. Deploy `infra` stack in Portainer
-4. Deploy `postgres`, `redis`, `qdrant` stacks
-5. Restore PostgreSQL dump
-6. Restore `redis_redis-data`, `qdrant_qdrant-data` volumes
-7. Deploy remaining stacks
-8. Restore remaining volumes and `/srv` paths
-9. Restart all stacks
+> **Note:** If restoring to a fresh postgres container, the container must be
+> running but target databases should not yet exist. Drop them first if needed.
 
 ---
 
-## What is backed up
+### /srv Bind Mounts
 
-| Item | Type | Notes |
-|---|---|---|
-| `monitoring_grafana-data` | Docker volume | Dashboards, datasources, preferences |
-| `monitoring_prometheus-data` | Docker volume | Metrics history |
-| `postgres_postgres-data` | pg_dump SQL | All databases, users, schemas |
-| `redis_redis-data` | Docker volume | AOF persistence file |
-| `qdrant_qdrant-data` | Docker volume | Vector collections |
-| `qdrant_qdrant-snapshots` | Docker volume | Qdrant snapshots |
-| `openwebui_openwebui-data` | Docker volume | Open WebUI config and history |
-| `portainer_data` | Docker volume | Portainer stacks, users, settings |
-| `gila_mongodb_data` | Docker volume | Gila MongoDB data |
-| `/srv/openclaw` | Bind mount | Agent config, workspace, memory, sessions |
-| `/srv/sandbox` | Bind mount | Sandbox agent config and workspace |
-| `/srv/certs` | Bind mount | TLS certificates |
-| `/srv/traefik` | Bind mount | Traefik dynamic config |
-| `/srv/nextcloud` | Bind mount | Nextcloud data, config, apps |
+Stop the relevant container before restoring its bind mount, then restore and
+fix ownership before restarting.
+
+```bash
+BACKUP_DIR="<BACKUP_ROOT>/YYYY-MM-DD-HHMMSS"
+
+docker stop <container-name>
+rm -rf /srv/<path>
+tar xzf "${BACKUP_DIR}/srv/<path>.tgz" -C /srv
+chown -R <owner>:<group> /srv/<path>
+docker start <container-name>
+```
+
+> **Ownership:** Each `/srv` path should be owned by whichever user or service
+> manages it. Check your setup's conventions before restoring — container-managed
+> paths (e.g. those written by `www-data`) should not be blindly chowned to your
+> user account.
+
+---
+
+### Full Stack Disaster Recovery
+
+If rebuilding the server from scratch:
+
+1. Provision the OS and run `scripts/bootstrap-server.sh`
+2. Install Docker + Portainer: `scripts/install-docker-portainer.sh`
+3. Install any required GPU drivers: `scripts/install-nvidia-drivers.sh`
+4. Restore `/srv/certs` and `/srv/traefik` before starting any stacks
+5. Re-deploy all Portainer GitOps stacks from the repo
+6. Restore each named Docker volume using the procedure above
+7. Restore PostgreSQL using the `pg_dumpall` procedure above
+8. Restore remaining `/srv` bind mounts
+9. Verify all services are healthy
+
+---
+
+## Offsite Sync
+
+Once a remote backup target (NAS, secondary server, etc.) is available,
+add an rsync step to the end of `backup.sh` or as a separate cron job:
+
+```bash
+rsync -av --delete <BACKUP_ROOT>/ <user>@<remote-host>:<remote-path>/
+```
+
+The server's SSH key (`~/.ssh/id_ed25519`) should be added to the remote
+host's `authorized_keys` to allow passwordless rsync.
