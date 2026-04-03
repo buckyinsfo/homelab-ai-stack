@@ -50,13 +50,15 @@ backup_volume "gila_mongodb_data"
 echo
 
 # ---------------------------------------------------------------------------
-# PostgreSQL — use pg_dump for a clean, restorable SQL dump
+# PostgreSQL — use pg_dumpall for a clean, restorable SQL dump.
+# Reads the superuser from the running container so no hardcoded credentials.
 # ---------------------------------------------------------------------------
 echo "==> Backing up PostgreSQL (pg_dump)"
 if docker ps --format '{{.Names}}' | grep -q "^postgres$"; then
-  docker exec postgres pg_dumpall -U postgres \
+  PG_USER=$(docker exec postgres printenv POSTGRES_USER)
+  docker exec postgres pg_dumpall -U "${PG_USER}" \
     > "${BACKUP_DIR}/volumes/postgres_dumpall.sql"
-  echo "  [postgres] pg_dumpall complete"
+  echo "  [postgres] pg_dumpall complete (user: ${PG_USER})"
 else
   echo "  [postgres] container not running, skipping"
 fi
