@@ -1,0 +1,29 @@
+services:
+  hermes:
+    build:
+      context: ../../images/hermes
+    container_name: hermes
+    restart: unless-stopped
+    command: ["gateway", "run"]
+
+    environment:
+      OPENAI_BASE_URL: http://ollama:11434/v1
+      OPENAI_API_KEY: ollama
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+
+    volumes:
+      - /srv/hermes:/opt/data
+
+    networks:
+      - proxy
+
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.hermes.rule: "Host(`hermes.${DOMAIN}`)"
+      traefik.http.routers.hermes.entrypoints: "websecure"
+      traefik.http.routers.hermes.tls: "true"
+      traefik.http.services.hermes.loadbalancer.server.port: "8000"
+
+networks:
+  proxy:
+    external: true
