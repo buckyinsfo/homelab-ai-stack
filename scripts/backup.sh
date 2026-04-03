@@ -8,6 +8,7 @@ set -euo pipefail
 BACKUP_ROOT="/srv/backups"
 TIMESTAMP=$(date +%F-%H%M%S)
 BACKUP_DIR="${BACKUP_ROOT}/${TIMESTAMP}"
+RETAIN_COUNT=7
 
 if [[ "${EUID}" -ne 0 ]]; then
   echo "Run as root: sudo bash $0"
@@ -87,4 +88,19 @@ echo "==> Backup complete"
 echo "    Location: ${BACKUP_DIR}"
 echo "    Size:     $(du -sh "${BACKUP_DIR}" | cut -f1)"
 echo
+
+# ---------------------------------------------------------------------------
+# Retention — keep the last RETAIN_COUNT backups, purge the rest
+# Only matches timestamped dirs (format: YYYY-MM-DD-HHMMSS)
+# ---------------------------------------------------------------------------
+echo "==> Pruning old backups (keeping last ${RETAIN_COUNT})"
+OLDER=$(find "${BACKUP_ROOT}" -maxdepth 1 -type d -name "????-??-??-*" | sort | head -n -"${RETAIN_COUNT}")
+if [[ -n "${OLDER}" ]]; then
+  echo "${OLDER}" | xargs rm -rf
+  echo "  Removed: $(echo "${OLDER}" | wc -l | tr -d ' ') old backup(s)"
+else
+  echo "  Nothing to prune"
+fi
+echo
+
 echo "To restore, see docs/BACKUP_RESTORE.md"
