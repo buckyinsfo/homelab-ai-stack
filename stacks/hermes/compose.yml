@@ -4,7 +4,7 @@ services:
       context: ../../images/hermes
     container_name: hermes
     restart: unless-stopped
-    command: ["gateway", "run"]
+    command: ["gateway", "run", "--yolo"]
 
     environment:
       OPENAI_BASE_URL: http://ollama:11434/v1
