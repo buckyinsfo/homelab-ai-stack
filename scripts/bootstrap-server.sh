@@ -81,6 +81,14 @@ fi
 
 chmod 644 "${DYNAMIC_FILE}"
 
+echo "==> Installing backup script to /usr/local/sbin/backup.sh"
+cp "$(dirname "$0")/backup.sh" /usr/local/sbin/backup.sh
+chmod 750 /usr/local/sbin/backup.sh
+
+echo "==> Installing backup cron job (daily at 04:00)"
+CRON_JOB="0 4 * * * /bin/bash /usr/local/sbin/backup.sh >> /srv/backups/backup.log 2>&1"
+( crontab -l 2>/dev/null | grep -v "backup.sh"; echo "${CRON_JOB}" ) | crontab -
+
 echo
 echo "Bootstrap complete."
 echo "Domain:              ${DOMAIN}"
