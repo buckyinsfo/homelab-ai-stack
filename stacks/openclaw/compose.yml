@@ -26,6 +26,7 @@ services:
       NEXTCLOUD_AGENTS_PASSWORD: ${NEXTCLOUD_AGENTS_PASSWORD}
       OLLAMA_BASE_URL: http://ollama:11434
       OPENCLAW_BIND: lan
+      CUTTHROAT_AGENT_API_KEY: ${CUTTHROAT_AGENT_API_KEY}
       
     volumes:
       - /srv/openclaw:/home/node/.openclaw
