@@ -33,6 +33,7 @@ services:
 
     networks:
       - proxy
+      - openclaw
 
     labels:
       traefik.enable: "true"
@@ -44,3 +45,6 @@ services:
 networks:
   proxy:
     external: true
+  openclaw:
+    name: openclaw
+    driver: bridge
