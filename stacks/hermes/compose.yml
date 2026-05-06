@@ -7,9 +7,20 @@ services:
     command: ["gateway", "run"]
 
     environment:
-      OPENAI_BASE_URL: http://ollama:11434/v1
-      OPENAI_API_KEY: ollama
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+
+    volumes:
+      - /srv/hermes:/opt/data
+
+    networks:
+      - proxy
+
+  hermes-dashboard:
+    build:
+      context: ../../images/hermes
+    container_name: hermes-dashboard
+    restart: unless-stopped
+    command: ["dashboard", "--no-open", "--host", "0.0.0.0", "--insecure"]
 
     volumes:
       - /srv/hermes:/opt/data
@@ -19,10 +30,12 @@ services:
 
     labels:
       traefik.enable: "true"
-      traefik.http.routers.hermes.rule: "Host(`hermes.${DOMAIN}`)"
-      traefik.http.routers.hermes.entrypoints: "websecure"
-      traefik.http.routers.hermes.tls: "true"
-      traefik.http.services.hermes.loadbalancer.server.port: "8000"
+      traefik.http.routers.hermes-dashboard.rule: "Host(`hermes.${DOMAIN}`)"
+      traefik.http.routers.hermes-dashboard.entrypoints: "websecure"
+      traefik.http.routers.hermes-dashboard.tls: "true"
+      traefik.http.routers.hermes-dashboard.middlewares: "hermes-auth@docker"
+      traefik.http.services.hermes-dashboard.loadbalancer.server.port: "9119"
+      traefik.http.middlewares.hermes-auth.basicauth.users: "${HERMES_AUTH_USERS}"
 
 networks:
   proxy:
