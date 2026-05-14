@@ -326,7 +326,7 @@ Set your env vars in Portainer before deploying. Only `ANTHROPIC_API_KEY` is req
 | `TELEGRAM_BOT_TOKEN` | Telegram channel integration |
 | `DISCORD_BOT_TOKEN` | Discord channel integration |
 | `TRELLO_API_KEY` / `TRELLO_TOKEN` | Trello tool access |
-| `GH_TOKEN` + `GITHUB_USERNAME` | GitHub tool access |
+| `GITHUB_TOKEN` + `GITHUB_USERNAME` | GitHub tool access |
 
 #### Post-deploy setup (run once after first deploy)
 

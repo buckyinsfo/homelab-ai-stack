@@ -95,8 +95,8 @@ No environment variables required.
 | `TRELLO_API_KEY` | ⚠️ Optional | `<trello-api-key>` | Trello API key for OpenClaw skills or tools that access Trello boards and cards. |
 | `TRELLO_TOKEN` | ⚠️ Optional | `<trello-token>` | Trello token paired with `TRELLO_API_KEY` for authenticated Trello API access from OpenClaw. |
 | `DISCORD_BOT_TOKEN` | ⚠️ Optional | `MTE0MjIw…` | Discord bot token for OpenClaw Discord channel integration. Create a bot in your Discord Server Settings → Integrations → Bots. |
-| `GH_TOKEN` | ⚠️ Optional | `github_pat_…` | GitHub personal access token used by the OpenClaw GitHub auth profile in `openclaw.json`. Required for GitHub API access from skills or tools. |
-| `GITHUB_USERNAME` | ⚠️ Optional | `your-github-username` | GitHub username paired with `GH_TOKEN` for the `github:default` auth profile in `openclaw.json`. |
+| `GITHUB_TOKEN` | ⚠️ Optional | `github_pat_…` | GitHub personal access token used by the OpenClaw GitHub auth profile in `openclaw.json`. Required for GitHub API access from skills or tools. |
+| `GITHUB_USERNAME` | ⚠️ Optional | `your-github-username` | GitHub username paired with `GITHUB_TOKEN` for the `github:default` auth profile in `openclaw.json`. |
 | `NEXTCLOUD_AGENTS_PASSWORD` | ✅ Yes | *(strong secret)* | Shared password for Nextcloud agent accounts. Used by OpenClaw agents to connect to Nextcloud for document storage. Generate with `openssl rand -hex 20`. |
 | `OPENCLAW_GATEWAY_TOKEN` | 📝 Manual convenience | `<token>` | Optional Portainer-side scratch value for copy/paste during pairing. It is **not** consumed by the compose file or container. The real gateway token lives in `/srv/openclaw/config/openclaw.json`. |
 
@@ -240,7 +240,7 @@ TELEGRAM_BOT_TOKEN=
 TRELLO_API_KEY=
 TRELLO_TOKEN=
 DISCORD_BOT_TOKEN=
-GH_TOKEN=
+GITHUB_TOKEN=
 GITHUB_USERNAME=
 NEXTCLOUD_AGENTS_PASSWORD=   ← shared password for agent accounts (eamon, maeve, ronan)
 OPENCLAW_GATEWAY_TOKEN=      ← optional convenience-only value; not consumed by the stack
