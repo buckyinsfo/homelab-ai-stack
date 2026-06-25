@@ -37,9 +37,7 @@ services:
       traefik.http.routers.hermes-dashboard.rule: "Host(`hermes.${DOMAIN}`)"
       traefik.http.routers.hermes-dashboard.entrypoints: "websecure"
       traefik.http.routers.hermes-dashboard.tls: "true"
-      traefik.http.routers.hermes-dashboard.middlewares: "hermes-auth@docker"
       traefik.http.services.hermes-dashboard.loadbalancer.server.port: "9119"
-      traefik.http.middlewares.hermes-auth.basicauth.users: "${HERMES_AUTH_USERS}"
 
 networks:
   proxy:
